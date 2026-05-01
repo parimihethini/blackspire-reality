@@ -1,5 +1,33 @@
 @import "tailwindcss";
-@config "../../tailwind.config.ts";
+
+@theme {
+  /* === Brand Colors === */
+  --color-brand-blue: #0A0F1F;
+  --color-brand-light: #121A2F;
+  --color-brand-teal: #4DA3FF;
+  --color-brand-accent: #7CC4FF;
+
+  /* === Custom Animations === */
+  --animate-fade-in: fade-in 0.5s ease-out forwards;
+  --animate-slide-up: slide-up 0.5s ease-out forwards;
+  --animate-pulse-subtle: pulse-subtle 2s infinite ease-in-out;
+
+  /* === Keyframes === */
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes slide-up {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+  }
+}
 
 :root {
     /* === Brand Palette === */
