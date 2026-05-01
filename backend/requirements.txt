@@ -1,0 +1,50 @@
+# FastAPI + async
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Database
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+
+# Auth & security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# passlib 1.7.4 requires bcrypt < 4 (bcrypt 4 removed __about__ used by passlib)
+bcrypt>=3.2.2,<4.0.0
+pydantic[email]==2.10.4
+pydantic-settings==2.7.0
+
+# Caching
+redis==5.2.1
+
+# Search
+elasticsearch==8.17.0
+
+# HTTP client (geocoding)
+httpx==0.28.1
+
+# Rate limiting
+slowapi==0.1.9
+
+# Web push notifications
+pywebpush==2.0.3
+
+# AI / ML
+scikit-learn==1.6.0
+numpy==2.2.1
+pandas==2.2.3
+joblib==1.4.2
+
+# NLP recommendations (optional but included)
+sentence-transformers==3.3.1
+
+# Document verification (optional – install separately if needed)
+# pytesseract==0.3.13
+# opencv-python-headless==4.10.0.84
+# Pillow==11.1.0
+
+# Image validation (optional – heavy, comment out if not needed)
+# torch==2.5.1
+# torchvision==0.20.1

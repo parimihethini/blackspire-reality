@@ -1,19 +1,122 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
-  --color-primary-black: #0B0B0B;
-  --color-gold: #C8A951;
-  --color-soft-gray: #1A1A1A;
-  --color-white: #FFFFFF;
+    /* === Brand Palette === */
+    --color-brand-blue: #0A0F1F;
+    --color-brand-light: #121A2F;
+    --color-brand-teal: #4DA3FF;
+    --color-brand-accent: #7CC4FF;
+    --color-brand-dark: #080C18;
+
+    /* === Semantic === */
+    --background: #0A0F1F;
+    --foreground: #FFFFFF;
+    --muted: #A0AEC0;
+    --border: rgba(255, 255, 255, 0.08);
+    --card-bg: rgba(18, 26, 47, 0.8);
 }
 
+/* === Theme === */
 html {
-  color-scheme: dark;
+    color-scheme: dark;
+    scroll-behavior: smooth;
 }
 
 body {
-  background-color: var(--color-primary-black);
-  color: var(--color-white);
-  font-family: 'Inter', sans-serif;
-  margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter, sans-serif);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Utility Layer === */
+@layer utilities {
+    .glass {
+        background-color: rgba(18, 26, 47, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-strong {
+        background-color: rgba(18, 26, 47, 0.7);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border: 1px solid rgba(77, 163, 255, 0.15);
+    }
+
+    .card {
+        background-color: rgba(18, 26, 47, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 1rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .glow-blue {
+        box-shadow: 0 0 20px rgba(77, 163, 255, 0.3);
+    }
+
+    .text-brand-teal {
+        color: #4DA3FF;
+    }
+
+    .text-brand-accent {
+        color: #7CC4FF;
+    }
+
+    .bg-brand-teal {
+        background-color: #4DA3FF;
+    }
+
+    .hide-scrollbar {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(77, 163, 255, 0.2) transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(77, 163, 255, 0.2);
+        border-radius: 999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(124, 196, 255, 0.4);
+    }
+}
+
+/* === Input base reset for dark theme === */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.7);
+    cursor: pointer;
+}
+
+/* === Selection === */
+::selection {
+    background-color: rgba(77, 163, 255, 0.3);
+    color: #fff;
+}
+
+/* === Focus visible ring === */
+*:focus-visible {
+    outline: 2px solid rgba(77, 163, 255, 0.6);
+    outline-offset: 2px;
 }
