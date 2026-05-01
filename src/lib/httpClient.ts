@@ -2,8 +2,7 @@
  * Shared API base + authenticated fetch (no dependency on ./auth — avoids circular imports).
  */
 
-export const API_ORIGIN =
-    (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_ORIGIN) || "http://127.0.0.1:8000";
+export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 /**
  * Fetch with JSON defaults and Bearer token from localStorage `token`.
@@ -64,6 +63,6 @@ export async function authFetch(input: string | URL, options: RequestInit = {}) 
         });
     } catch (error) {
         console.error("[authFetch] Network request failed", { input: resolvedInput, error });
-        throw new Error("Failed to fetch. Ensure backend is running on http://127.0.0.1:8000");
+        throw new Error("Backend connection failed. Please try again later.");
     }
 }
