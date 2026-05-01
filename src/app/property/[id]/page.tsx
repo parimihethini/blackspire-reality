@@ -23,7 +23,7 @@ export default function PropertyDetails() {
             return;
         }
 
-        getPropertyById(id, preview)
+        getPropertyById(id)
             .then(found => {
                 console.log("[PropertyPage] Property loaded:", found);
                 setProperty(found ?? null);

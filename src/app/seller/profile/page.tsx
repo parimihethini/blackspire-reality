@@ -30,7 +30,7 @@ export default function SellerProfile() {
         setCompany((auth as any).company || "");
         setToken(auth.token || "");
         if ((auth as any).profile_image) {
-            setProfilePic(auth.profile_image);
+            setProfilePic(auth.profile_image || null);
         }
         
         // Simple logic to extract country code if phone exists
@@ -62,7 +62,7 @@ export default function SellerProfile() {
                     role: user?.role || auth.role,
                     name: user?.name || auth.name,
                     phone: user?.phone || auth.phone,
-                    profile_image: user?.profile_image || undefined,
+                    profile_image: user?.profile_image || null,
                 });
             } catch (err) {
                 console.error("Failed to fetch profile", err);
