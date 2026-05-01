@@ -1,41 +1,36 @@
 import smtplib
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import os
 
-from app.core.config import settings
 
-
-def _send(to: str, subject: str, html: str) -> bool:
-    smtp_user = (os.getenv("SMTP_USER") or settings.SMTP_USER or "").strip()
-    smtp_pass = (settings.SMTP_PASSWORD or "").strip()
-    if not smtp_user or not smtp_pass:
-        print("[Email] SMTP not configured (missing SMTP_USER/SMTP_PASSWORD)")
-        return False
-    # For Gmail SMTP, the authenticated user is the only reliable sender.
-    # Force sender to be SMTP_USER to avoid any stale/incorrect EMAIL_FROM values.
-    sender_email = smtp_user
-
-    msg = MIMEMultipart("alternative")
+def send_email(to_email: str, subject: str, body: str, is_html: bool = True):
+    print("SMTP_USER:", os.getenv("SMTP_USER"))
+    print("Sending OTP to:", to_email)
+    
+    msg = MIMEMultipart("alternative") if is_html else MIMEText(body)
     msg["Subject"] = subject
-    msg["From"] = f"Blackspire Realty <{sender_email}>"
-    msg["To"] = to
-    msg.attach(MIMEText(html, "html"))
-    try:
-        print(f"[Email] Using SMTP_USER={smtp_user} FROM={sender_email} TO={to}")
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as srv:
-            srv.ehlo()
-            srv.starttls()
-            srv.ehlo()
-            srv.login(smtp_user, smtp_pass)
-            srv.sendmail(sender_email, to, msg.as_string())
-        return True
-    except Exception as e:
-        print(f"[Email] Send failed: {type(e).__name__}: {e}")
-        return False
+    msg["From"] = os.getenv("EMAIL_FROM") or os.getenv("SMTP_USER")
+    msg["To"] = to_email
+    
+    if is_html:
+        msg.attach(MIMEText(body, "html"))
+    else:
+        # If it was already MIMEText
+        pass # The above handles text differently if we used MIMEMultipart, let's keep it simple
+
+    host = os.getenv("SMTP_HOST")
+    port = int(os.getenv("SMTP_PORT") or "587")
+    user = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASSWORD")
+
+    with smtplib.SMTP(host, port) as server:
+        server.starttls()
+        server.login(user, password)
+        server.send_message(msg)
 
 
-def send_otp(to: str, name: str, otp: str) -> bool:
+def send_otp(to: str, name: str, otp: str):
     html = f"""
     <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                 background:#0A0F1F;color:#fff;border-radius:16px;">
@@ -45,11 +40,11 @@ def send_otp(to: str, name: str, otp: str) -> bool:
       <p style="color:#A0AEC0;">Expires in <strong>10 minutes</strong>. Do not share this with anyone.</p>
     </div>
     """
-    return _send(to, "Verify your Blackspire account", html)
+    send_email(to, "Verify your Blackspire account", html, is_html=True)
 
 
-def send_reset_email(to: str, name: str, token: str) -> bool:
-    link = f"http://localhost:3000/reset-password?token={token}"
+def send_reset_email(to: str, name: str, token: str):
+    link = f"https://blackspire-reality.vercel.app/reset-password?token={token}"
     html = f"""
     <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                 background:#0A0F1F;color:#fff;border-radius:16px;">
@@ -63,4 +58,4 @@ def send_reset_email(to: str, name: str, token: str) -> bool:
       <p style="color:#A0AEC0;margin-top:16px;">This link expires in 1 hour.</p>
     </div>
     """
-    return _send(to, "Reset your Blackspire password", html)
+    send_email(to, "Reset your Blackspire password", html, is_html=True)
