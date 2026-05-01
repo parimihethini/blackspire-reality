@@ -17,9 +17,7 @@ export default function PropertyCard({ location, type, price, image }: Property)
 
                 <p className="text-[#C8A951] font-bold text-xl">{price}</p>
 
-                <button className="w-full mt-4 bg-[#C8A951] text-black py-2 rounded-md font-medium hover:opacity-90">
-                    View Details
-                </button>
+                {/* Details disabled */}
             </div>
         </div>
     );
