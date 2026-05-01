@@ -24,7 +24,7 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = True):
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASSWORD")
 
-    with smtplib.SMTP(host, port) as server:
+    with smtplib.SMTP(host, port, timeout=10) as server:
         server.starttls()
         server.login(user, password)
         server.send_message(msg)
