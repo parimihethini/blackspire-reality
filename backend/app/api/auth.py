@@ -90,10 +90,14 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
         check = verify_password(data.password, user.hashed_password)
         print(f"[AUTH_DEBUG] register email={user.email} hash_stored={preview} verify_roundtrip={check}")
 
-    send_otp(user.email, user.name, otp)
+    try:
+        send_otp(user.email, user.name, otp)
+    except Exception as e:
+        print("EMAIL ERROR:", str(e))
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
 
     return {
-        "message": "Registration successful. Please verify your email with the OTP sent.",
+        "message": "User registered. OTP sent to email.",
         "email": user.email,
         "role": user.role,
     }
@@ -136,7 +140,11 @@ async def resend_otp(data: PasswordResetRequest, db: Session = Depends(get_db)):
     user.otp_code = otp
     user.otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
     db.commit()
-    send_otp(user.email, user.name, otp)
+    try:
+        send_otp(user.email, user.name, otp)
+    except Exception as e:
+        print("EMAIL ERROR:", str(e))
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
     return {"message": "OTP resent to your email"}
 
 
@@ -214,7 +222,11 @@ async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_
         user.reset_token = token
         user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
         db.commit()
-        send_reset_email(user.email, user.name, token)
+        try:
+            send_reset_email(user.email, user.name, token)
+        except Exception as e:
+            print("EMAIL ERROR:", str(e))
+            raise HTTPException(status_code=500, detail="Failed to send password reset email")
     return {"message": "If the email exists, a reset link has been sent."}
 
 
