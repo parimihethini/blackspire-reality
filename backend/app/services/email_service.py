@@ -45,26 +45,38 @@ def _get_gmail_service():
     print("EXISTS:", token_path.exists())
 
     if not token_path.exists():
-        raise FileNotFoundError(f"token.pickle not found at {token_path}")
+        print("WARNING: token.pickle not found. Email service will be disabled.")
+        return None
 
-    with open(token_path, "rb") as token:
-        creds = pickle.load(token)
+    try:
+        with open(token_path, "rb") as token:
+            creds = pickle.load(token)
 
-    return build("gmail", "v1", credentials=creds)
+        return build("gmail", "v1", credentials=creds)
+    except Exception as e:
+        print(f"WARNING: Failed to load gmail service: {e}")
+        return None
 
 def send_email_gmail(to_email: str, subject: str, body_html: str):
-    service = _get_gmail_service()
+    try:
+        service = _get_gmail_service()
+        if not service:
+            print(f"WARNING: Skipping email to {to_email} (service unavailable)")
+            return
 
-    message = MIMEText(body_html, "html")
-    message["to"] = to_email
-    message["subject"] = subject
+        message = MIMEText(body_html, "html")
+        message["to"] = to_email
+        message["subject"] = subject
 
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-    service.users().messages().send(
-        userId="me",
-        body={"raw": raw}
-    ).execute()
+        service.users().messages().send(
+            userId="me",
+            body={"raw": raw}
+        ).execute()
+        print(f"Email successfully sent to {to_email}")
+    except Exception as e:
+        print(f"ERROR sending email to {to_email}: {e}")
 
 def send_otp_email(user_email: str, otp: str):
     html = f""" <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
