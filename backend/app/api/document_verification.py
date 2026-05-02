@@ -4,7 +4,7 @@ import uuid
 import shutil
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from app.services.ocr_service import extract_text_from_image
-from app.services.ai_parser import analyze_document
+from app.services.gemini_parser import analyze_document_gemini
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def verify_document(file: UploadFile = File(...)):
             }
             
         # 3. Run AI Analysis
-        ai_result = analyze_document(text)
+        ai_result = analyze_document_gemini(text)
         
         if isinstance(ai_result, dict) and "error" in ai_result:
             return {
