@@ -9,8 +9,8 @@ def _force_load_dotenv(dotenv_path: Path) -> None:
     """
     try:
         raw = dotenv_path.read_text(encoding="utf-8")
-    except Exception as e:
-        print("[ENV] Could not read .env:", dotenv_path, type(e).__name__, e)
+    except Exception:
+        # Silently fail if .env is missing; Railway uses direct environment variables.
         return
 
     for line in raw.splitlines():
@@ -54,6 +54,7 @@ import app.models.user        # noqa
 import app.models.property    # noqa
 import app.models.investment  # noqa
 import app.models.review      # noqa
+import app.models.favorite    # noqa
 
 
 @asynccontextmanager
