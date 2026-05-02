@@ -1,15 +1,17 @@
+
 """
-Document verification using pytesseract + OpenCV.
+Document verification using pytesseract + Pillow.
 Extracts text, detects legal keywords, and assesses compliance.
+Removed OpenCV to prevent libGL.so.1 errors on Railway.
 """
 import io
 import re
 from typing import Dict, Any, List
+import logging
 
 try:
     import pytesseract
-    from PIL import Image
-    import cv2
+    from PIL import Image, ImageOps, ImageFilter
     import numpy as np
     _OCR_AVAILABLE = True
 except ImportError:
@@ -23,16 +25,18 @@ LEGAL_KEYWORDS = [
 COMPLIANCE_KEYWORDS = ["dtcp", "cmda", "bmrda", "approval", "sanctioned", "layout", "approved"]
 
 
-def _preprocess(image_bytes: bytes) -> "np.ndarray":
-    arr = np.frombuffer(image_bytes, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.fastNlMeansDenoising(gray, h=10)
-    processed = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 11, 2,
-    )
-    return processed
+def _preprocess(image_bytes: bytes) -> Image.Image:
+    """
+    Preprocess image using Pillow instead of OpenCV.
+    """
+    img = Image.open(io.BytesIO(image_bytes))
+    # Convert to grayscale
+    gray = ImageOps.grayscale(img)
+    # Increase contrast
+    gray = ImageOps.autocontrast(gray)
+    # Slight sharpen
+    gray = gray.filter(ImageFilter.SHARPEN)
+    return gray
 
 
 def _extract_fields(text: str) -> Dict[str, str]:
@@ -71,18 +75,20 @@ def verify_document(file_bytes: bytes, document_type: str) -> Dict[str, Any]:
             "extracted_text": "",
             "confidence": 0.0,
             "fields_detected": {},
-            "issues": ["OCR libraries (pytesseract, opencv-python, Pillow) not installed"],
+            "issues": ["OCR libraries (pytesseract, Pillow) not installed"],
             "compliance_status": "Unverifiable",
         }
 
     try:
-        processed = _preprocess(file_bytes)
-        pil_img = Image.fromarray(processed)
-        raw_text = pytesseract.image_to_string(pil_img, lang="eng")
-        data = pytesseract.image_to_data(pil_img, output_type=pytesseract.Output.DICT)
+        processed_img = _preprocess(file_bytes)
+        raw_text = pytesseract.image_to_string(processed_img, lang="eng")
+        
+        # Get confidence levels
+        data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT)
         confidences = [int(c) for c in data["conf"] if str(c).isdigit() and int(c) > 0]
         avg_conf = sum(confidences) / len(confidences) / 100 if confidences else 0.0
     except Exception as e:
+        logging.error(f"OCR processing error: {e}")
         issues.append(f"OCR processing error: {str(e)}")
         return {
             "is_valid": False,

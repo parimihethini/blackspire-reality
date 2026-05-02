@@ -1,43 +1,31 @@
 
-import os
-import cv2
-import numpy as np
-from paddleocr import PaddleOCR
 import logging
-
-# Initialize OCR globally to avoid reloading model each request
-# use_angle_cls=True helps with rotated documents
-# lang='en' for English
-try:
-    ocr_model = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
-    OCR_AVAILABLE = True
-except Exception as e:
-    print(f"[OCR] Error initializing PaddleOCR: {e}")
-    ocr_model = None
-    OCR_AVAILABLE = False
+from PIL import Image
+import pytesseract
+import os
 
 def extract_text_from_image(file_path: str) -> str:
     """
-    Extracts text from an image file using PaddleOCR.
+    Extracts text from an image file using Pytesseract (lightweight).
     Returns clean lowercase text or empty string on failure.
     """
-    if not OCR_AVAILABLE or ocr_model is None:
+    if not os.path.exists(file_path):
+        logging.error(f"[OCR] File not found: {file_path}")
         return ""
 
     try:
-        # PaddleOCR expects a file path or numpy array
-        result = ocr_model.ocr(file_path, cls=True)
+        # Open image using Pillow
+        img = Image.open(file_path)
         
-        if not result or not result[0]:
+        # Extract text using pytesseract
+        # Note: requires tesseract-ocr system binary
+        text = pytesseract.image_to_string(img)
+        
+        if not text:
             return ""
 
-        extracted_lines = []
-        for line in result[0]:
-            # line[1][0] is the text content
-            text = line[1][0]
-            extracted_lines.append(text.lower())
-            
-        return " ".join(extracted_lines)
+        # Return clean lowercase text for validation
+        return text.lower().strip()
     except Exception as e:
-        logging.error(f"[OCR] Extraction failed for {file_path}: {e}")
+        logging.error(f"[OCR] Pytesseract extraction failed for {file_path}: {e}")
         return ""
