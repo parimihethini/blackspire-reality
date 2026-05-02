@@ -38,7 +38,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 _force_load_dotenv(ENV_PATH)
 print("Loaded ENV from:", ENV_PATH)
-print("SMTP_USER:", os.getenv("SMTP_USER"))
 
 from app.core.config import settings
 from app.db.session import engine
