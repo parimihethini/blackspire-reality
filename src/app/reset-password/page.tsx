@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Lock, ArrowRight, KeyRound, ChevronLeft, CheckCircle2 } from "lucide-react";
-import { authFetch, API_ORIGIN } from "@/lib/httpClient";
+import { apiPost } from "@/lib/httpClient";
 
 function ResetPasswordForm() {
     const router = useRouter();
@@ -40,12 +40,9 @@ function ResetPasswordForm() {
         setIsLoading(true);
 
         try {
-            const response = await authFetch(`${API_ORIGIN}/auth/reset-password`, {
-                method: "POST",
-                body: JSON.stringify({
-                    token: token.trim(),
-                    new_password: password,
-                }),
+            const response = await apiPost('/auth/reset-password', {
+                token: token.trim(),
+                new_password: password,
             });
 
             const data = await response.json().catch(() => ({}));
