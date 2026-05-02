@@ -19,6 +19,7 @@ from app.core.security import (
 from app.schemas.user import (
     UserCreate, LoginRequest, TokenResponse, OTPVerifyRequest,
     PasswordResetRequest, PasswordResetConfirm, RefreshTokenRequest,
+    ResetOTPVerifyRequest
 )
 from app.services.email_service import send_otp_email, send_reset_email
 
@@ -219,15 +220,19 @@ async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_
     user = db.query(User).filter(User.email == data.email).first()
     if user:
         token = generate_token()
+        otp = generate_otp()
         user.reset_token = token
         user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        user.reset_otp_hash = hash_password(otp)
+        user.reset_otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
+        user.reset_otp_attempts = 0
         db.commit()
         try:
-            send_reset_email(user.email, user.name, token)
+            send_reset_email(user.email, user.name, token, otp)
         except Exception as e:
             print("EMAIL ERROR:", str(e))
             # Do not crash the server if email fails.
-    return {"message": "If the email exists, a reset link has been sent."}
+    return {"message": "If the email exists, a reset link and OTP have been sent."}
 
 
 @router.post("/reset-password")
@@ -241,5 +246,38 @@ async def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_d
     user.hashed_password = hash_password(data.new_password)
     user.reset_token = None
     user.reset_token_expires = None
+    user.reset_otp_hash = None
+    user.reset_otp_expires_at = None
+    user.reset_otp_attempts = 0
+    db.commit()
+    return {"message": "Password reset successfully"}
+
+
+@router.post("/verify-reset-otp")
+async def verify_reset_otp(data: ResetOTPVerifyRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if not user.reset_otp_hash or not user.reset_otp_expires_at:
+        raise HTTPException(status_code=400, detail="No OTP requested")
+        
+    if datetime.utcnow() > user.reset_otp_expires_at.replace(tzinfo=None):
+        raise HTTPException(status_code=400, detail="OTP has expired. Request a new one.")
+        
+    if (user.reset_otp_attempts or 0) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Request a new OTP.")
+        
+    if not verify_password(data.otp, user.reset_otp_hash):
+        user.reset_otp_attempts = (user.reset_otp_attempts or 0) + 1
+        db.commit()
+        raise HTTPException(status_code=400, detail=f"Invalid OTP. {5 - user.reset_otp_attempts} attempts left.")
+        
+    user.hashed_password = hash_password(data.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    user.reset_otp_hash = None
+    user.reset_otp_expires_at = None
+    user.reset_otp_attempts = 0
     db.commit()
     return {"message": "Password reset successfully"}

@@ -84,7 +84,7 @@ def send_otp_email(user_email: str, otp: str):
     """
     send_email_gmail(user_email, "Verify your Blackspire account", html)
 
-def send_reset_email(to_email: str, name: str, token: str):
+def send_reset_email(to_email: str, name: str, token: str, otp: str):
     link = f"https://blackspire-reality.vercel.app/reset-password?token={token}"
 
     html = f"""
@@ -92,7 +92,10 @@ def send_reset_email(to_email: str, name: str, token: str):
                 background:#0A0F1F;color:#fff;border-radius:16px;">
       <h2 style="color:#4DA3FF;">Password Reset</h2>
       <p>Hi {name},</p>
-      <p>Click below to reset your password:</p>
+      <p>You requested a password reset. Your OTP is:</p>
+      <h1 style="letter-spacing:12px;color:#7CC4FF;font-size:40px;">{otp}</h1>
+      <p style="color:#A0AEC0;">Expires in <strong>10 minutes</strong>.</p>
+      <p>Or click below to reset via link:</p>
       <a href="{link}" style="display:inline-block;background:#4DA3FF;color:#0A0F1F;
          padding:12px 24px;border-radius:8px;text-decoration:none;">
          Reset Password
