@@ -1,4 +1,4 @@
-import { authFetch, API_ORIGIN } from "./httpClient";
+import { authFetch, API_ORIGIN, apiPost } from "./httpClient";
 
 export interface AuthUser {
     id?: number;
@@ -211,10 +211,7 @@ export function replaceSessionFromLoginResponse(data: {
 }
 
 export async function login(credentials: { email: string; password: string; role: string }) {
-    const response = await authFetch(`${API_ORIGIN}/auth/login`, {
-        method: "POST",
-        body: JSON.stringify(credentials),
-    });
+    const response = await apiPost('/auth/login', credentials);
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -241,10 +238,7 @@ export async function register(data: {
     password: string;
     role: string;
 }) {
-    const response = await authFetch(`${API_ORIGIN}/auth/register`, {
-        method: "POST",
-        body: JSON.stringify(data),
-    });
+    const response = await apiPost('/auth/register', data);
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
         throw new Error(

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, ArrowRight, ShieldCheck, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { authFetch, API_ORIGIN } from "@/lib/httpClient";
+import { apiPost } from "@/lib/httpClient";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -21,10 +21,7 @@ export default function ForgotPassword() {
         setMessage("");
 
         try {
-            const response = await authFetch(`${API_ORIGIN}/auth/forgot-password`, {
-                method: "POST",
-                body: JSON.stringify({ email }),
-            });
+            const response = await apiPost('/auth/forgot-password', { email });
 
             if (!response.ok) {
                 throw new Error("Failed to send reset link.");

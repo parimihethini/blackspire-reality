@@ -2,7 +2,42 @@
  * Shared API base + authenticated fetch (no dependency on ./auth — avoids circular imports).
  */
 
-export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "";
+const rawBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+let sanitizedBase = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+if (sanitizedBase && !sanitizedBase.startsWith("http://") && !sanitizedBase.startsWith("https://")) {
+    sanitizedBase = `https://${sanitizedBase}`;
+}
+export const API_BASE = sanitizedBase;
+export const API_ORIGIN = API_BASE;
+
+console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+
+/**
+ * Ensures clean URL construction
+ */
+export function buildApiUrl(path: string) {
+    if (!path) return API_BASE;
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+        return path;
+    }
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${API_BASE}${cleanPath}`;
+}
+
+export const apiPost = async (path: string, data: any, options: RequestInit = {}) => {
+    return authFetch(path, {
+        ...options,
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+};
+
+export const apiGet = async (path: string, options: RequestInit = {}) => {
+    return authFetch(path, {
+        ...options,
+        method: "GET",
+    });
+};
 
 /**
  * Fetch with JSON defaults and Bearer token from localStorage `token`.
@@ -10,7 +45,7 @@ export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "";
  */
 export async function authFetch(input: string | URL, options: RequestInit = {}) {
     if (typeof window === "undefined") {
-        return fetch(input, options);
+        return fetch(typeof input === "string" ? buildApiUrl(input) : input, options);
     }
 
     let token = localStorage.getItem("token");
@@ -51,10 +86,7 @@ export async function authFetch(input: string | URL, options: RequestInit = {}) 
         merged["Authorization"] = `Bearer ${token}`;
     }
 
-    const resolvedInput =
-        typeof input === "string" && input.startsWith("/")
-            ? `${API_ORIGIN}${input}`
-            : input;
+    const resolvedInput = typeof input === "string" ? buildApiUrl(input) : input;
 
     try {
         return await fetch(resolvedInput, {

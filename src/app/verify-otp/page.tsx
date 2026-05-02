@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { replaceSessionFromLoginResponse, getPostLoginPath } from "@/lib/auth";
 import { getErrorDetail, readJsonSafely } from "@/lib/api";
-import { authFetch, API_ORIGIN } from "@/lib/httpClient";
+import { apiPost } from "@/lib/httpClient";
 import { ShieldCheck, ArrowRight, RefreshCw } from "lucide-react";
 
 function VerifyOTPContent() {
@@ -37,10 +37,7 @@ function VerifyOTPContent() {
         setError("");
 
         try {
-            const response = await authFetch(`${API_ORIGIN}/auth/verify-otp`, {
-                method: "POST",
-                body: JSON.stringify({ email, otp }),
-            });
+            const response = await apiPost('/auth/verify-otp', { email, otp });
 
             if (!response.ok) {
                 throw new Error(await getErrorDetail(response, "Verification failed"));
@@ -73,10 +70,7 @@ function VerifyOTPContent() {
         setIsResending(true);
         setResendMessage("");
         try {
-            const response = await authFetch(`${API_ORIGIN}/auth/resend-otp`, {
-                method: "POST",
-                body: JSON.stringify({ email }),
-            });
+            const response = await apiPost('/auth/resend-otp', { email });
 
             if (!response.ok) {
                 const detail = await response.text().catch(() => "");
