@@ -48,3 +48,8 @@ sentence-transformers==3.3.1
 # Image validation (optional – heavy, comment out if not needed)
 # torch==2.5.1
 # torchvision==0.20.1
+
+# Gmail API
+google-api-python-client==2.113.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0

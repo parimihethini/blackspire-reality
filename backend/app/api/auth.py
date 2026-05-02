@@ -20,7 +20,7 @@ from app.schemas.user import (
     UserCreate, LoginRequest, TokenResponse, OTPVerifyRequest,
     PasswordResetRequest, PasswordResetConfirm, RefreshTokenRequest,
 )
-from app.services.email_service import send_otp, send_reset_email
+from app.services.email_service import send_otp_email, send_reset_email
 
 router = APIRouter()
 
@@ -91,7 +91,7 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
         print(f"[AUTH_DEBUG] register email={user.email} hash_stored={preview} verify_roundtrip={check}")
 
     try:
-        send_otp(user.email, user.name, otp)
+        send_otp_email(user.email, otp)
     except Exception as e:
         print("EMAIL ERROR:", str(e))
         raise HTTPException(status_code=500, detail="Failed to send OTP")
@@ -141,7 +141,7 @@ async def resend_otp(data: PasswordResetRequest, db: Session = Depends(get_db)):
     user.otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
     db.commit()
     try:
-        send_otp(user.email, user.name, otp)
+        send_otp_email(user.email, otp)
     except Exception as e:
         print("EMAIL ERROR:", str(e))
         raise HTTPException(status_code=500, detail="Failed to send OTP")

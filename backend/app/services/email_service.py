@@ -1,61 +1,58 @@
-import smtplib
+import pickle
+import base64
+from pathlib import Path
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import os
+from googleapiclient.discovery import build
 
+def _get_gmail_service():
+    # Dynamically resolve backend root directory
+    BASE_DIR = Path(__file__).resolve().parents[2]
+    token_path = BASE_DIR / "token.pickle"
 
-def send_email(to_email: str, subject: str, body: str, is_html: bool = True):
-    print("SMTP_USER:", os.getenv("SMTP_USER"))
-    print("Sending OTP to:", to_email)
-    
-    msg = MIMEMultipart("alternative") if is_html else MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = os.getenv("EMAIL_FROM") or os.getenv("SMTP_USER")
-    msg["To"] = to_email
-    
-    if is_html:
-        msg.attach(MIMEText(body, "html"))
-    else:
-        # If it was already MIMEText
-        pass # The above handles text differently if we used MIMEMultipart, let's keep it simple
+    print("TOKEN PATH:", token_path)
+    print("EXISTS:", token_path.exists())
 
-    host = os.getenv("SMTP_HOST")
-    port = int(os.getenv("SMTP_PORT") or "587")
-    user = os.getenv("SMTP_USER")
-    password = os.getenv("SMTP_PASSWORD")
+    if not token_path.exists():
+        raise FileNotFoundError(f"token.pickle not found at {token_path}")
 
-    with smtplib.SMTP(host, port, timeout=10) as server:
-        server.starttls()
-        server.login(user, password)
-        server.send_message(msg)
+    with open(token_path, "rb") as token:
+        creds = pickle.load(token)
 
+    return build("gmail", "v1", credentials=creds)
 
-def send_otp(to: str, name: str, otp: str):
-    html = f"""
-    <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
-                background:#0A0F1F;color:#fff;border-radius:16px;">
-      <h2 style="color:#4DA3FF;">Welcome to Blackspire, {name}!</h2>
-      <p>Your verification OTP is:</p>
-      <h1 style="letter-spacing:12px;color:#7CC4FF;font-size:40px;">{otp}</h1>
-      <p style="color:#A0AEC0;">Expires in <strong>10 minutes</strong>. Do not share this with anyone.</p>
-    </div>
+def send_email_gmail(to_email: str, subject: str, body_html: str):
+    service = _get_gmail_service()
+
+    message = MIMEText(body_html, "html")
+    message["to"] = to_email
+    message["subject"] = subject
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    service.users().messages().send(
+        userId="me",
+        body={"raw": raw}
+    ).execute()
+
+def send_otp_email(user_email: str, otp: str):
+    html = f""" <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
+                 background:#0A0F1F;color:#fff;border-radius:16px;"> <h2 style="color:#4DA3FF;">Welcome to Blackspire!</h2> <p>Your verification OTP is:</p> <h1 style="letter-spacing:12px;color:#7CC4FF;font-size:40px;">{otp}</h1> <p style="color:#A0AEC0;">Expires in <strong>10 minutes</strong>.</p> </div>
     """
-    send_email(to, "Verify your Blackspire account", html, is_html=True)
+    send_email_gmail(user_email, "Verify your Blackspire account", html)
 
-
-def send_reset_email(to: str, name: str, token: str):
+def send_reset_email(to_email: str, name: str, token: str):
     link = f"https://blackspire-reality.vercel.app/reset-password?token={token}"
+
     html = f"""
     <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                 background:#0A0F1F;color:#fff;border-radius:16px;">
-      <h2 style="color:#4DA3FF;">Password Reset – Blackspire</h2>
+      <h2 style="color:#4DA3FF;">Password Reset</h2>
       <p>Hi {name},</p>
-      <p>Click the button below to reset your password:</p>
+      <p>Click below to reset your password:</p>
       <a href="{link}" style="display:inline-block;background:#4DA3FF;color:#0A0F1F;
-         padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none;">
+         padding:12px 24px;border-radius:8px;text-decoration:none;">
          Reset Password
       </a>
-      <p style="color:#A0AEC0;margin-top:16px;">This link expires in 1 hour.</p>
     </div>
     """
-    send_email(to, "Reset your Blackspire password", html, is_html=True)
+    send_email_gmail(to_email, "Reset your password", html)

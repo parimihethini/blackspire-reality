@@ -42,13 +42,8 @@ class Settings(BaseSettings):
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
 
-    # Email (SMTP)
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    # Sender address. If empty, email_service will fall back to SMTP_USER.
-    EMAIL_FROM: str = ""
+    # Email Settings
+    EMAIL_FROM: str = "blackspirereality@gmail.com"
 
     # CORS origins
     ALLOWED_ORIGINS: List[str] = [
@@ -70,6 +65,5 @@ class Settings(BaseSettings):
 _backend_root = Path(__file__).resolve().parents[2]
 _dotenv_path = _backend_root / ".env"
 _force_load_dotenv(_dotenv_path)
-print("[ENV] SMTP_USER:", os.getenv("SMTP_USER"))
 
 settings = Settings()
