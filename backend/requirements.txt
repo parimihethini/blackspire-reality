@@ -40,10 +40,13 @@ joblib==1.4.2
 # NLP recommendations (optional but included)
 sentence-transformers==3.3.1
 
-# Document verification (optional – install separately if needed)
-# pytesseract==0.3.13
-# opencv-python-headless==4.10.0.84
-# Pillow==11.1.0
+# Document verification
+paddleocr>=2.7.0
+paddlepaddle>=2.6.0
+pillow>=10.0.0
+pdf2image>=1.17.0
+opencv-python-headless>=4.8.0
+python-multipart>=0.0.9
 
 # Image validation (optional – heavy, comment out if not needed)
 # torch==2.5.1
