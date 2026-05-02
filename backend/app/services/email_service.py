@@ -1,13 +1,45 @@
+import os
 import pickle
 import base64
 from pathlib import Path
 from email.mime.text import MIMEText
 from googleapiclient.discovery import build
 
+backend_dir = Path("/app") if os.getenv("RAILWAY_ENVIRONMENT") or os.name != 'nt' else Path(__file__).resolve().parents[2]
+
+cred_path = backend_dir / "credentials.json"
+token_path = backend_dir / "token.pickle"
+
+# DEBUG LOGS
+print("CHECKING FILES...")
+print("cred exists:", cred_path.exists())
+print("token exists:", token_path.exists())
+
+# Create credentials.json
+if not cred_path.exists():
+    creds_base64 = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+    if creds_base64:
+        print("CREATING credentials.json from ENV")
+        with open(cred_path, "wb") as f:
+            f.write(base64.b64decode(creds_base64))
+    else:
+        print("MISSING GOOGLE_CREDENTIALS_BASE64")
+
+# Create token.pickle
+if not token_path.exists():
+    token_base64 = os.getenv("GOOGLE_TOKEN_BASE64")
+    if token_base64:
+        print("CREATING token.pickle from ENV")
+        with open(token_path, "wb") as f:
+            f.write(base64.b64decode(token_base64))
+    else:
+        print("MISSING GOOGLE_TOKEN_BASE64")
+
+# Final check
+print("FINAL cred exists:", cred_path.exists())
+print("FINAL token exists:", token_path.exists())
+
 def _get_gmail_service():
-    # Dynamically resolve backend root directory
-    BASE_DIR = Path(__file__).resolve().parents[2]
-    token_path = BASE_DIR / "token.pickle"
 
     print("TOKEN PATH:", token_path)
     print("EXISTS:", token_path.exists())
