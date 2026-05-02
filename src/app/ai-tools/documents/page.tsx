@@ -18,24 +18,44 @@ export default function DocumentAnalysis() {
         else setResult(data);
     };
 
-    const handleUpload = () => {
+    const handleUpload = async () => {
         if (!file) return;
         setLoading(true);
         setError(null);
         setResult(null);
 
-        setTimeout(() => {
-            const data = {
-                extracted_text: `DOCUMENT TYPE: Property Deed / Sale Agreement\nIDENTIFIED OWNER: Registered Member\nREGISTRATION NUMBER: 2024/03/BLK-4521\nLOCATION: Sector 5, Bangalore North\nZONING: Residential Gated Community\nCLEAR TITLE: Yes (No Pending Litigation)\nENCUMBRANCE: Nil`,
-                compliance: 'Passed',
-                confidence: 98.4,
-                fraud_risk: 'Low',
-                suggested_action: 'Proceed to closing'
+        try {
+            const data = await uploadDocument(file);
+            console.log("SUCCESS:", data);
+            
+            if (data.status === "failed" || data.status === "error") {
+                setError(data.message || "Analysis failed");
+                setLoading(false);
+                return;
+            }
+
+            // Transform backend response to match UI expectations if needed
+            const analysis = data.analysis;
+            const uiResult = {
+                extracted_text: data.raw_text || "",
+                compliance: analysis.legal_status === "clear" ? "Passed" : "Pending",
+                confidence: 95, // AI confidence is generally high
+                fraud_risk: analysis.risk_level || "Medium",
+                details: {
+                    type: analysis.document_type,
+                    owner: analysis.owner,
+                    location: analysis.location,
+                    reg_no: analysis.registration_number
+                }
             };
-            console.log("SUCCESS (Mock):", data);
+
             setLoading(false);
-            displayResult(data);
-        }, 2000);
+            setResult(uiResult);
+        } catch (err: any) {
+            console.error("UPLOAD ERROR:", err);
+            setError(err.message || "Verification failed. Please check your connection.");
+            setLoading(false);
+        }
     };
 
 

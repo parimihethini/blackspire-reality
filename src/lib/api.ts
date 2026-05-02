@@ -161,7 +161,7 @@ export async function uploadDocument(file: File) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("document_type", "deed");
-        const res = await authFetch(`${API_ORIGIN}/ai/verify-document`, {
+        const res = await authFetch(`${API_ORIGIN}/verification/verify-document`, {
             method: "POST",
             body: formData,
         });
