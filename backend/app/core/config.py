@@ -20,7 +20,7 @@ def _force_load_dotenv(dotenv_path: Path) -> None:
         key = k.strip()
         val = v.strip().strip("'").strip('"')
         if key:
-            os.environ[key] = val
+            os.environ.setdefault(key, val)
 
 
 class Settings(BaseSettings):

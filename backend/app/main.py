@@ -23,7 +23,8 @@ def _force_load_dotenv(dotenv_path: Path) -> None:
         key = k.strip()
         val = v.strip().strip("'").strip('"')
         if key:
-            os.environ[key] = val
+            # ONLY set if not already present in environment (standard behavior)
+            os.environ.setdefault(key, val)
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,7 +61,32 @@ import app.models.favorite    # noqa
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Startup ──
+    # 1. Ensure basic tables exist
     Base.metadata.create_all(bind=engine)
+    
+    # 2. Manual migration safety check (Self-Healing)
+    from sqlalchemy import inspect, text
+    try:
+        with engine.connect() as conn:
+            inspector = inspect(engine)
+            columns = [c['name'] for c in inspector.get_columns('users')]
+            
+            # Add missing columns if they don't exist
+            if 'reset_otp_hash' not in columns:
+                print("[Migration] Adding reset_otp_hash to users...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_hash VARCHAR(255)"))
+            if 'reset_otp_expires_at' not in columns:
+                print("[Migration] Adding reset_otp_expires_at to users...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_expires_at TIMESTAMP WITH TIME ZONE"))
+            if 'reset_otp_attempts' not in columns:
+                print("[Migration] Adding reset_otp_attempts to users...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_attempts INTEGER DEFAULT 0"))
+            
+            conn.commit()
+            print("[Migration] Database schema check complete.")
+    except Exception as e:
+        print(f"[Migration] Error during manual schema check: {e}")
+
     await cache.connect()
     await search.connect()
     yield
