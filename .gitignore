@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+backend/credentials.json
+backend/token.pickle
+cred.txt
+token.txt
