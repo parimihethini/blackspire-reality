@@ -1,20 +1,24 @@
 
 """
-Document verification using pytesseract + Pillow.
+Document verification using EasyOCR + Pillow.
 Extracts text, detects legal keywords, and assesses compliance.
-Removed OpenCV to prevent libGL.so.1 errors on Railway.
+Updated to use EasyOCR and removed OpenCV to prevent libGL.so.1 errors.
 """
 import io
 import re
 from typing import Dict, Any, List
 import logging
+from PIL import Image, ImageOps, ImageFilter
+import numpy as np
 
+# EasyOCR is now the standard in this project
 try:
-    import pytesseract
-    from PIL import Image, ImageOps, ImageFilter
-    import numpy as np
+    import easyocr
+    # Initialize reader globally
+    _reader = easyocr.Reader(['en'], gpu=False)
     _OCR_AVAILABLE = True
-except ImportError:
+except Exception as e:
+    logging.error(f"EasyOCR initialization failed: {e}")
     _OCR_AVAILABLE = False
 
 LEGAL_KEYWORDS = [
@@ -27,7 +31,7 @@ COMPLIANCE_KEYWORDS = ["dtcp", "cmda", "bmrda", "approval", "sanctioned", "layou
 
 def _preprocess(image_bytes: bytes) -> Image.Image:
     """
-    Preprocess image using Pillow instead of OpenCV.
+    Preprocess image using Pillow.
     """
     img = Image.open(io.BytesIO(image_bytes))
     # Convert to grayscale
@@ -75,18 +79,22 @@ def verify_document(file_bytes: bytes, document_type: str) -> Dict[str, Any]:
             "extracted_text": "",
             "confidence": 0.0,
             "fields_detected": {},
-            "issues": ["OCR libraries (pytesseract, Pillow) not installed"],
+            "issues": ["OCR engine (EasyOCR) not available"],
             "compliance_status": "Unverifiable",
         }
 
     try:
+        # EasyOCR can take bytes directly or we can pass the processed PIL image as a numpy array
         processed_img = _preprocess(file_bytes)
-        raw_text = pytesseract.image_to_string(processed_img, lang="eng")
+        img_np = np.array(processed_img)
         
-        # Get confidence levels
-        data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT)
-        confidences = [int(c) for c in data["conf"] if str(c).isdigit() and int(c) > 0]
-        avg_conf = sum(confidences) / len(confidences) / 100 if confidences else 0.0
+        # result is a list of [box, text, confidence]
+        results = _reader.readtext(img_np)
+        
+        raw_text = " ".join([res[1] for res in results])
+        confidences = [res[2] for res in results]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        
     except Exception as e:
         logging.error(f"OCR processing error: {e}")
         issues.append(f"OCR processing error: {str(e)}")

@@ -5,11 +5,12 @@ Checks if uploaded images are real property photos (not blank, corrupted, or irr
 import io
 from typing import Dict, Any
 
+from PIL import Image
+
 try:
     import torch
     import torchvision.transforms as T
     from torchvision.models import resnet18, ResNet18_Weights
-    from PIL import Image
     _TORCH_AVAILABLE = True
 except ImportError:
     _TORCH_AVAILABLE = False
