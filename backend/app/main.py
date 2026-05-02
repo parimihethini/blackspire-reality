@@ -43,7 +43,7 @@ print("Loaded ENV from:", ENV_PATH)
 from app.core.config import settings
 from app.db.session import engine
 from app.db.base import Base
-from app.api import auth, users, properties, ai, analytics, investments, reviews, websockets, favorites, notifications, admin as admin_router
+from app.api import auth, users, properties, ai, analytics, investments, reviews, websockets, favorites, notifications, admin as admin_router, document_verification
 from app.services.cache_service import cache
 from app.services.search_service import search
 
@@ -148,6 +148,7 @@ app.include_router(favorites.router,   prefix="/favorites",    tags=["Favorites"
 app.include_router(reviews.router,     prefix="/reviews",      tags=["Reviews"])
 app.include_router(websockets.router,  prefix="/ws",          tags=["WebSockets"])
 app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
+app.include_router(document_verification.router, prefix="/verification", tags=["Document Verification"])
 app.include_router(admin_router.router)
 
 
