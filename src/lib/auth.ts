@@ -238,14 +238,28 @@ export async function register(data: {
     password: string;
     role: string;
 }) {
-    const response = await apiPost('/auth/register', data);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error(
-            typeof result?.detail === "string"
+    try {
+        const response = await apiPost('/auth/register', data);
+        const result = await response.json().catch(() => ({}));
+        
+        if (response.status === 201) {
+            return { success: true, ...result };
+        }
+        if (response.status === 409) {
+            return { success: false, error: "Account already exists with this email." };
+        }
+        if (response.status === 422) {
+            return { success: false, error: "Please check your details. Validation failed." };
+        }
+        if (!response.ok) {
+            const errorDetail = typeof result?.detail === "string"
                 ? result.detail
-                : JSON.stringify(result?.detail) || "Registration failed"
-        );
+                : "An unexpected error occurred. Please try again.";
+            return { success: false, error: errorDetail };
+        }
+        
+        return { success: true, ...result };
+    } catch (err: any) {
+        return { success: false, error: "Connection error. Please try again later." };
     }
-    return result;
 }

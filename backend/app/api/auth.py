@@ -94,7 +94,7 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
         send_otp_email(user.email, otp)
     except Exception as e:
         print("EMAIL ERROR:", str(e))
-        raise HTTPException(status_code=500, detail="Failed to send OTP")
+        # Do not crash the server if email fails. OTP is stored in DB.
 
     return {
         "message": "User registered. OTP sent to email.",
@@ -144,7 +144,7 @@ async def resend_otp(data: PasswordResetRequest, db: Session = Depends(get_db)):
         send_otp_email(user.email, otp)
     except Exception as e:
         print("EMAIL ERROR:", str(e))
-        raise HTTPException(status_code=500, detail="Failed to send OTP")
+        # Do not crash the server if email fails. OTP is stored in DB.
     return {"message": "OTP resent to your email"}
 
 
@@ -226,7 +226,7 @@ async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_
             send_reset_email(user.email, user.name, token)
         except Exception as e:
             print("EMAIL ERROR:", str(e))
-            raise HTTPException(status_code=500, detail="Failed to send password reset email")
+            # Do not crash the server if email fails.
     return {"message": "If the email exists, a reset link has been sent."}
 
 
