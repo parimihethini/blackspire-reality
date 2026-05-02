@@ -91,6 +91,18 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError("Password must be at least 8 characters")
         return v
 
+class ResetOTPVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_pw(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

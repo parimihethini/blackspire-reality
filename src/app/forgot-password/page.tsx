@@ -27,7 +27,7 @@ export default function ForgotPassword() {
                 throw new Error("Failed to send reset link.");
             }
 
-            setMessage("If an account exists with this email, a reset link has been sent.");
+            router.push(`/reset-password-otp?email=${encodeURIComponent(email)}`);
         } catch (err: any) {
             setError(err.message || "Failed to process request.");
         } finally {
