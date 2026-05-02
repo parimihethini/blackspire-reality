@@ -26,6 +26,9 @@ def _force_load_dotenv(dotenv_path: Path) -> None:
             # ONLY set if not already present in environment (standard behavior)
             os.environ.setdefault(key, val)
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
