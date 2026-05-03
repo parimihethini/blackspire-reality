@@ -47,54 +47,58 @@ Return JSON only:
             contents=prompt
         )
 
-        # Try common response fields first
+        # Extract candidate text robustly
         resp_text = None
-        if hasattr(response, "text") and getattr(response, "text"):
-            resp_text = getattr(response, "text")
-        elif hasattr(response, "content") and getattr(response, "content"):
-            resp_text = getattr(response, "content")
-        else:
-            # Some client responses include nested candidate/output fields
-            try:
-                # Try candidates array
+        try:
+            if hasattr(response, "text") and getattr(response, "text"):
+                resp_text = getattr(response, "text")
+            elif hasattr(response, "content") and getattr(response, "content"):
+                resp_text = getattr(response, "content")
+            else:
                 cand = getattr(response, "candidates", None)
                 if cand and isinstance(cand, (list, tuple)) and len(cand) > 0:
                     first = cand[0]
                     resp_text = getattr(first, "text", None) or getattr(first, "content", None) or str(first)
                 else:
-                    # Try outputs or content[0]
                     outs = getattr(response, "outputs", None) or getattr(response, "content", None)
                     if outs:
-                        # attempt to stringify
                         resp_text = str(outs)
-            except Exception:
-                resp_text = str(response)
+        except Exception:
+            resp_text = str(response)
 
         if resp_text is None:
             resp_text = str(response)
 
-        # Normalize to string
         resp_text = str(resp_text)
 
-        # First attempt: direct JSON parse
+        # Debug: log raw response
+        logging.debug("Gemini raw response: %s", resp_text)
+
+        # 1) Try direct JSON parse
         try:
             data = json.loads(resp_text)
             return {"status": "success", "data": data}
         except Exception:
-            # Second attempt: extract JSON substring via regex
-            try:
-                m = re.search(r"(\{[\s\S]*\})", resp_text)
-                if m:
-                    json_part = m.group(1)
-                    data = json.loads(json_part)
-                    return {"status": "success", "data": data}
-            except Exception as ex:
-                logging.debug(f"JSON extraction attempt failed: {ex}")
+            pass
 
-        # If we reach here, parsing failed — log and return standardized failure
-        logging.error("Invalid AI response, could not parse JSON from Gemini output")
-        logging.debug("Gemini raw response: %s", resp_text)
-        return {"status": "failed", "message": "Invalid AI response"}
+        # 2) Extract JSON substring using regex and clean it
+        try:
+            m = re.search(r"(\{[\s\S]*\})", resp_text)
+            if m:
+                json_part = m.group(1)
+                # Clean string: remove newlines and tabs
+                cleaned = json_part.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+                cleaned = cleaned.strip()
+                logging.debug("Extracted JSON string: %s", cleaned)
+                data = json.loads(cleaned)
+                return {"status": "success", "data": data}
+        except Exception as ex:
+            logging.debug(f"JSON extraction/parse failed: {ex}")
+
+        # Parsing failed — standardized failure
+        logging.error("Invalid JSON format from AI; unable to parse structured data")
+        logging.debug("Gemini raw response for debugging: %s", resp_text)
+        return {"status": "failed", "message": "Invalid JSON format from AI"}
 
     except Exception as e:
         logging.error(f"Gemini analysis error: {e}")
