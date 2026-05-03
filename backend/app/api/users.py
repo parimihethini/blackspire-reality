@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 import os
 import uuid
+from app.services.cloudinary_service import upload_image
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -26,25 +27,26 @@ async def upload_profile_image(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Upload profile image and persist relative image path in DB."""
-    os.makedirs("uploads", exist_ok=True)
-    _, ext = os.path.splitext(file.filename or "")
-    safe_ext = ext.lower() if ext else ".jpg"
-    file_path = f"uploads/{current_user.id}_{uuid.uuid4().hex}{safe_ext}"
-    
+    """Upload profile image to Cloudinary and persist URL in DB."""
     try:
         content = await file.read()
         if not content:
             raise HTTPException(status_code=400, detail="Empty file")
-        with open(file_path, "wb") as f:
-            f.write(content)
         
-        # Save path to DB
-        current_user.profile_image = file_path
+        # Upload to Cloudinary
+        image_url = upload_image(content)
+        
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Cloudinary upload failed")
+        
+        # Save URL to DB
+        current_user.profile_image = image_url
         db.commit()
         db.refresh(current_user)
         
-        return {"image_url": _to_public_image_url(request, file_path)}
+        return {"image_url": image_url}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[Upload] Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload image")
