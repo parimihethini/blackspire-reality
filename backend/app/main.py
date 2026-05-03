@@ -126,13 +126,16 @@ async def unhandled_exception_handler(_: Request, exc: Exception):
         content={"detail": str(exc) or "Internal Server Error"},
     )
 
+# Configure CORS origins via environment variable `FRONTEND_ORIGINS`
+allowed = os.getenv(
+    "FRONTEND_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,https://blackspire-reality.vercel.app",
+)
+allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://blackspire-reality.vercel.app",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

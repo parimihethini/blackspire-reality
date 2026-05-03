@@ -3,8 +3,8 @@ import os
 import uuid
 import shutil
 from fastapi import APIRouter, File, UploadFile, HTTPException
-from app.services.ocr_service import extract_text_from_image
-from app.services.gemini_parser import analyze_document
+from app.services.file_parser import extract_text
+from app.services.ai_parser import analyze_document
 
 router = APIRouter()
 
@@ -16,41 +16,21 @@ async def verify_document(file: UploadFile = File(...)):
     """
     Production-grade document verification using pytesseract and Gemini AI.
     """
-    temp_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_{file.filename}")
-    
     try:
-        # 1. Save uploaded file temporarily
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        # 2. Run OCR -> get text
-        text = extract_text_from_image(temp_path)
-        
-        if not text:
-            return {
-                "status": "failed",
-                "message": "OCR failed"
-            }
-            
-        # 3. Run AI Analysis
+        # 1. Extract text from uploaded file (supports txt, pdf, images)
+        text = await extract_text(file)
+
+        if not text or len(text.strip()) == 0:
+            return {"status": "failed", "message": "Text extraction failed"}
+
+        # 2. Run AI Analysis
         ai_result = analyze_document(text)
-        
-        return {
-            "status": "success",
-            "raw_text": text[:500],
-            "analysis": ai_result
-        }
-        
+
+        if not isinstance(ai_result, dict) or ai_result.get("status") != "success":
+            return {"status": "failed", "message": ai_result.get("message", "AI analysis failed")}
+
+        return {"status": "success", "raw_text": text[:2000], "analysis": ai_result.get("data")}
+
     except Exception as e:
         print(f"[Verification Error] {e}")
-        return {
-            "status": "error",
-            "message": f"Processing failed: {str(e)}"
-        }
-    finally:
-        # 4. Cleanup
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception as e:
-                print(f"[Cleanup Error] Could not remove {temp_path}: {e}")
+        return {"status": "failed", "message": str(e)}
