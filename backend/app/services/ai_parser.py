@@ -25,20 +25,20 @@ def analyze_document(text: str):
     if not text or len(text) < 20:
         return {"status": "failed", "message": "No text extracted"}
 
-    prompt = f"""
+        prompt = f"""
 Extract structured details from this legal document:
 
 {text}
 
 Return JSON only:
-{
-  "document_type": "",
-  "owner": "",
-  "location": "",
-  "registration_number": "",
-  "legal_status": "",
-  "risk_level": ""
-}
+{{
+    "document_type": "",
+    "owner": "",
+    "location": "",
+    "registration_number": "",
+    "legal_status": "",
+    "risk_level": ""
+}}
 """
 
     try:
