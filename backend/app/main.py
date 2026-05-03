@@ -50,9 +50,6 @@ from app.api import auth, users, properties, ai, analytics, investments, reviews
 from app.services.cache_service import cache
 from app.services.search_service import search
 
-# Ensure static upload directory exists before app mount.
-os.makedirs("uploads", exist_ok=True)
-
 # Import all models so SQLAlchemy creates them
 import app.models.user        # noqa
 import app.models.property    # noqa
@@ -86,6 +83,12 @@ async def lifespan(app: FastAPI):
                 conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_attempts INTEGER DEFAULT 0"))
             
             conn.commit()
+            
+            # 3. Cloudinary Migration: Clear old local paths that are now broken
+            print("[Migration] Clearing legacy local profile image paths...")
+            conn.execute(text("UPDATE users SET profile_image = NULL WHERE profile_image LIKE 'uploads/%'"))
+            conn.commit()
+            
             print("[Migration] Database schema check complete.")
     except Exception as e:
         print(f"[Migration] Error during manual schema check: {e}")
@@ -140,8 +143,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router,        prefix="/auth",        tags=["Authentication"])

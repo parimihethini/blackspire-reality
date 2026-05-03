@@ -11,18 +11,8 @@ from app.schemas.user import UserResponse, UserUpdate
 
 router = APIRouter()
 
-def _to_public_image_url(request: Request, profile_image: str | None) -> str | None:
-    if not profile_image:
-        return None
-    if profile_image.startswith("http://") or profile_image.startswith("https://"):
-        return profile_image
-    normalized = profile_image.lstrip("/")
-    return str(request.base_url).rstrip("/") + f"/{normalized}"
-
-
 @router.post("/upload-profile-image")
 async def upload_profile_image(
-    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -39,6 +29,8 @@ async def upload_profile_image(
         if not image_url:
             raise HTTPException(status_code=500, detail="Cloudinary upload failed")
         
+        print(f"Cloudinary upload success: {image_url}")
+        
         # Save URL to DB
         current_user.profile_image = image_url
         db.commit()
@@ -49,12 +41,11 @@ async def upload_profile_image(
         raise
     except Exception as e:
         print(f"[Upload] Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to upload image")
+        return {"status": "failed", "message": "Image upload failed"}
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(request: Request, current_user: User = Depends(get_any_user)):
-    current_user.profile_image = _to_public_image_url(request, current_user.profile_image)
+def get_me(current_user: User = Depends(get_any_user)):
     return current_user
 
 

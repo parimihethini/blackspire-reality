@@ -161,19 +161,15 @@ async def ai_verify_document(
     """
     Production-grade document verification using pytesseract and Gemini AI.
     """
-    temp_path = os.path.join("uploads", f"{uuid.uuid4()}_{file.filename}")
-    
     try:
-        # Ensure uploads directory exists
-        os.makedirs("uploads", exist_ok=True)
-        
-        # Save uploaded file temporarily
-        content = await file.read()
-        if len(content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
-        
-        with open(temp_path, "wb") as buffer:
-            buffer.write(content)
+        # Save uploaded file to a temporary location using system temp dir
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            content = await file.read()
+            if len(content) > 10 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+            tmp.write(content)
+            temp_path = tmp.name
             
         # Run OCR -> get text
         text = extract_text_from_image(temp_path)

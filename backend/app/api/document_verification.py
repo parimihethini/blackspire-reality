@@ -8,9 +8,6 @@ from app.services.ai_parser import analyze_document
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 @router.post("/verify-document")
 async def verify_document(file: UploadFile = File(...)):
     """
