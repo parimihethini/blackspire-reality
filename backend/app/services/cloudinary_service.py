@@ -21,9 +21,15 @@ def upload_image(file):
     Handles both file objects and paths.
     """
     try:
-        # result = cloudinary.uploader.upload(file, folder="profile_images")
+        # result = cloudinary.uploader.upload(file)
+        # We use file directly if it's bytes or a file-like object
         result = cloudinary.uploader.upload(file)
-        return result.get("secure_url")
+        url = result.get("secure_url")
+        if url:
+            print(f"[Cloudinary] Upload successful: {url}")
+        return url
     except Exception as e:
-        print("Cloudinary upload error:", e)
+        print(f"[Cloudinary] CRITICAL UPLOAD ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None

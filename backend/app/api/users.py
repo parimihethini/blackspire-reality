@@ -40,8 +40,10 @@ async def upload_profile_image(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Upload] Error: {e}")
-        return {"status": "failed", "message": "Image upload failed"}
+        print(f"[Upload] Unhandled Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
 
 
 @router.get("/me", response_model=UserResponse)
