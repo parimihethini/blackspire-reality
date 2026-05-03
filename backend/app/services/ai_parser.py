@@ -2,17 +2,18 @@ import os
 import json
 import logging
 import re
-from google import genai
+import google.generativeai as genai
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
     print("GEMINI API LOADED: False (Missing GEMINI_API_KEY)")
-    client = None
+    model = None
 else:
     print("GEMINI API LOADED: True")
-    client = genai.Client(api_key=API_KEY)
-    print("Gemini client initialized")
+    genai.configure(api_key=API_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    print("Gemini model initialized (flash-latest)")
 
 
 def analyze_document(text: str):
@@ -23,10 +24,10 @@ def analyze_document(text: str):
                 "message": "No text extracted"
             }
 
-        if not client:
+        if not model:
             return {
                 "status": "failed",
-                "message": "Gemini client not initialized (Missing API Key)"
+                "message": "Gemini model not initialized (Missing API Key)"
             }
 
         clean_text = text[:3000]
@@ -46,10 +47,7 @@ Document:
 {clean_text}
 """
 
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt
-        )
+        response = model.generate_content(prompt)
         raw_output = response.text.strip()
 
         # Try direct JSON parse
