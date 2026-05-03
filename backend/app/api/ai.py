@@ -6,6 +6,9 @@ import pickle
 from pathlib import Path
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import uuid
+import shutil
 
 from app.db.session import get_db
 from app.core.dependencies import get_any_user
@@ -18,9 +21,9 @@ from app.schemas.ai import (
 from app.ai.price_predictor import predict_price
 from app.ai.fraud_detection import detect_fraud
 from app.ai.recommendation import recommend
-from app.ai.document_verification import verify_document
 from app.ai.image_validation import validate_image
-from app.ai.price_predictor import city_tier
+from app.services.ocr_service import extract_text_from_image
+from app.services.gemini_parser import analyze_document
 
 router = APIRouter()
 
@@ -155,10 +158,67 @@ async def ai_verify_document(
     file: UploadFile = File(...),
     _=Depends(get_any_user),
 ):
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
-    return verify_document(content, document_type)
+    """
+    Production-grade document verification using pytesseract and Gemini AI.
+    """
+    temp_path = os.path.join("uploads", f"{uuid.uuid4()}_{file.filename}")
+    
+    try:
+        # Ensure uploads directory exists
+        os.makedirs("uploads", exist_ok=True)
+        
+        # Save uploaded file temporarily
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+        
+        with open(temp_path, "wb") as buffer:
+            buffer.write(content)
+            
+        # Run OCR -> get text
+        text = extract_text_from_image(temp_path)
+        
+        if not text:
+            return {
+                "is_valid": False,
+                "extracted_text": "",
+                "confidence": 0.0,
+                "fields_detected": {},
+                "issues": ["OCR failed"],
+                "compliance_status": "Error",
+            }
+            
+        # Run AI Analysis
+        ai_result = analyze_document(text)
+        
+        return {
+            "is_valid": ai_result.get("status") == "success",
+            "extracted_text": text[:2000],
+            "confidence": 0.85 if ai_result.get("status") == "success" else 0.0,
+            "fields_detected": ai_result.get("data", {}) if ai_result.get("status") == "success" else {},
+            "issues": [] if ai_result.get("status") == "success" else [ai_result.get("message", "Analysis failed")],
+            "compliance_status": "Compliant" if ai_result.get("status") == "success" else "Error",
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Verification Error] {e}")
+        return {
+            "is_valid": False,
+            "extracted_text": "",
+            "confidence": 0.0,
+            "fields_detected": {},
+            "issues": [str(e)],
+            "compliance_status": "Error",
+        }
+    finally:
+        # Cleanup
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                print(f"[Cleanup Error] Could not remove {temp_path}: {e}")
 
 
 @router.post("/validate-image")

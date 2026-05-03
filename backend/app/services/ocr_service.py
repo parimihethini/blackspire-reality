@@ -1,28 +1,22 @@
 
-import easyocr
-import logging
+import pytesseract
+from PIL import Image
 import os
+import logging
 
-# Initialize reader globally
-try:
-    reader = easyocr.Reader(['en'], gpu=False)
-    _AVAILABLE = True
-except Exception as e:
-    print(f"[OCR] Error initializing EasyOCR: {e}")
-    _AVAILABLE = False
+# For Windows local dev (safe fallback)
+if os.name == "nt":
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 def extract_text_from_image(file_path: str) -> str:
     """
-    Extracts text from an image file using EasyOCR.
-    Returns clean lowercase text or empty string on failure.
+    Extracts text from an image file using pytesseract.
+    Returns clean text or empty string on failure.
     """
-    if not _AVAILABLE:
-        return ""
-
     try:
-        # detail=0 returns just the text
-        result = reader.readtext(file_path, detail=0)
-        return " ".join(result)
+        image = Image.open(file_path)
+        text = pytesseract.image_to_string(image)
+        return text.strip()
     except Exception as e:
-        logging.error(f"[OCR] EasyOCR extraction failed for {file_path}: {e}")
+        logging.error(f"[OCR] pytesseract extraction failed for {file_path}: {e}")
         return ""

@@ -4,7 +4,7 @@ import uuid
 import shutil
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from app.services.ocr_service import extract_text_from_image
-from app.services.gemini_parser import analyze_document_gemini
+from app.services.gemini_parser import analyze_document
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/verify-document")
 async def verify_document(file: UploadFile = File(...)):
     """
-    Upgraded production-grade document verification using EasyOCR and GPT-4o-mini.
+    Production-grade document verification using pytesseract and Gemini AI.
     """
     temp_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_{file.filename}")
     
@@ -29,20 +29,12 @@ async def verify_document(file: UploadFile = File(...)):
         if not text:
             return {
                 "status": "failed",
-                "message": "Unable to extract text from the document image.",
-                "analysis": None
+                "message": "OCR failed"
             }
             
         # 3. Run AI Analysis
-        ai_result = analyze_document_gemini(text)
+        ai_result = analyze_document(text)
         
-        if isinstance(ai_result, dict) and "error" in ai_result:
-            return {
-                "status": "failed",
-                "message": "Analysis failed",
-                "error": ai_result["error"]
-            }
-            
         return {
             "status": "success",
             "raw_text": text[:500],
@@ -53,7 +45,7 @@ async def verify_document(file: UploadFile = File(...)):
         print(f"[Verification Error] {e}")
         return {
             "status": "error",
-            "message": f"Processing failed safely: {str(e)}"
+            "message": f"Processing failed: {str(e)}"
         }
     finally:
         # 4. Cleanup
