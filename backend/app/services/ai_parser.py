@@ -46,60 +46,70 @@ Return JSON only:
             model="gemini-1.5-flash",
             contents=prompt
         )
-
-        # Extract candidate text robustly
-        resp_text = None
+        """
+        Safe AI call: always defines prompt, limits input size, and returns
+        a dict with status and data or an error message.
+        """
         try:
-            if hasattr(response, "text") and getattr(response, "text"):
-                resp_text = getattr(response, "text")
-            elif hasattr(response, "content") and getattr(response, "content"):
-                resp_text = getattr(response, "content")
-            else:
-                cand = getattr(response, "candidates", None)
-                if cand and isinstance(cand, (list, tuple)) and len(cand) > 0:
-                    first = cand[0]
-                    resp_text = getattr(first, "text", None) or getattr(first, "content", None) or str(first)
-                else:
-                    outs = getattr(response, "outputs", None) or getattr(response, "content", None)
-                    if outs:
-                        resp_text = str(outs)
-        except Exception:
-            resp_text = str(response)
+            if not client:
+                return {"status": "failed", "message": "Missing GEMINI_API_KEY"}
 
-        if resp_text is None:
-            resp_text = str(response)
+            if not text or len(text.strip()) == 0:
+                return {"status": "failed", "message": "No text extracted from document"}
 
-        resp_text = str(resp_text)
+            # Limit input size to avoid huge prompts
+            clean_text = text[:3000]
 
-        # Debug: log raw response
-        logging.debug("Gemini raw response: %s", resp_text)
+            prompt = f"""
+    Extract the following details from this document and return ONLY valid JSON:
 
-        # 1) Try direct JSON parse
-        try:
-            data = json.loads(resp_text)
-            return {"status": "success", "data": data}
-        except Exception:
-            pass
+    Fields:
+    - document_type
+    - owner
+    - location
+    - registration_number
+    - legal_status
+    - risk_level (LOW / MEDIUM / HIGH)
 
-        # 2) Extract JSON substring using regex and clean it
-        try:
-            m = re.search(r"(\{[\s\S]*\})", resp_text)
-            if m:
-                json_part = m.group(1)
-                # Clean string: remove newlines and tabs
-                cleaned = json_part.replace("\n", " ").replace("\r", " ").replace("\t", " ")
-                cleaned = cleaned.strip()
-                logging.debug("Extracted JSON string: %s", cleaned)
-                data = json.loads(cleaned)
-                return {"status": "success", "data": data}
-        except Exception as ex:
-            logging.debug(f"JSON extraction/parse failed: {ex}")
+    Document:
+    {clean_text}
+    """
 
-        # Parsing failed — standardized failure
-        logging.error("Invalid JSON format from AI; unable to parse structured data")
-        logging.debug("Gemini raw response for debugging: %s", resp_text)
-        return {"status": "failed", "message": "Invalid JSON format from AI"}
+            # Call Gemini via client
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=prompt
+            )
 
-    except Exception as e:
-        logging.error(f"Gemini analysis error: {e}")
-        return {"status": "failed", "message": str(e)}
+            # Normalize response text
+            raw_output = getattr(response, "text", None) or getattr(response, "content", None) or str(response)
+            raw_output = str(raw_output).strip()
+
+            # Debug logs
+            logging.debug("Gemini raw response: %s", raw_output)
+
+            # 1) Try direct JSON parse
+            try:
+                parsed = json.loads(raw_output)
+                return {"status": "success", "data": parsed}
+            except Exception:
+                pass
+
+            # 2) Regex fallback: extract JSON object
+            try:
+                match = re.search(r"\{[\s\S]*\}", raw_output)
+                if match:
+                    json_str = match.group(0)
+                    # Clean up string
+                    cleaned = json_str.replace("\n", " ").replace("\r", " ").replace("\t", " ").strip()
+                    logging.debug("Extracted JSON string: %s", cleaned)
+                    parsed = json.loads(cleaned)
+                    return {"status": "success", "data": parsed}
+            except Exception as ex:
+                logging.debug("JSON extract/parse failed: %s", ex)
+
+            return {"status": "failed", "message": "AI returned invalid format"}
+
+        except Exception as e:
+            logging.error("AI parsing error: %s", e)
+            return {"status": "failed", "message": str(e)}
