@@ -47,7 +47,7 @@ Document:
 """
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash-latest",
+            model="gemini-flash-latest",
             contents=prompt
         )
         raw_output = response.text.strip()
