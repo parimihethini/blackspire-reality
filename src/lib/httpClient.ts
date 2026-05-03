@@ -2,7 +2,7 @@
  * Shared API base + authenticated fetch (no dependency on ./auth — avoids circular imports).
  */
 
-const rawBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+const rawBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\s/g, "");
 let sanitizedBase = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 if (sanitizedBase && !sanitizedBase.startsWith("http://") && !sanitizedBase.startsWith("https://")) {
     sanitizedBase = `https://${sanitizedBase}`;
