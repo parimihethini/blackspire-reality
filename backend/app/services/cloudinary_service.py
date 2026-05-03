@@ -16,13 +16,7 @@ cloudinary.config(
 )
 
 def upload_image(file):
-    """
-    Uploads a file to Cloudinary and returns the secure URL.
-    Handles both file objects and paths.
-    """
     try:
-        # result = cloudinary.uploader.upload(file)
-        # We use file directly if it's bytes or a file-like object
         result = cloudinary.uploader.upload(file)
         url = result.get("secure_url")
         if url:
@@ -30,6 +24,4 @@ def upload_image(file):
         return url
     except Exception as e:
         print(f"[Cloudinary] CRITICAL UPLOAD ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return None
+        raise e

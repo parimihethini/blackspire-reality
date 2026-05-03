@@ -26,9 +26,6 @@ async def upload_profile_image(
         # Upload to Cloudinary
         image_url = upload_image(content)
         
-        if not image_url:
-            raise HTTPException(status_code=500, detail="Cloudinary upload failed")
-        
         print(f"Cloudinary upload success: {image_url}")
         
         # Save URL to DB
