@@ -42,7 +42,7 @@ Return JSON only with exactly these keys:
 
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash-latest",
+            model="gemini-flash-latest",
             contents=prompt
         )
 
@@ -84,7 +84,7 @@ Return JSON with exactly these keys:
 
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash-latest",
+            model="gemini-flash-latest",
             contents=prompt
         )
 
