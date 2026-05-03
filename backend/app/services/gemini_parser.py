@@ -55,7 +55,7 @@ Return JSON only with exactly these keys:
 
     except Exception as e:
         logging.error(f"Gemini analysis error: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "failed", "message": str(e)}
 
 
 def analyze_document_gemini(text: str):
@@ -64,10 +64,10 @@ def analyze_document_gemini(text: str):
     Uses Google Gemini 1.5 Flash to extract legal details from OCR text.
     """
     if not client:
-        return {"error": "Missing GEMINI_API_KEY"}
+        return {"status": "failed", "message": "Missing GEMINI_API_KEY"}
         
     if not text or len(text) < 20:
-        return {"error": "No meaningful text extracted"}
+        return {"status": "failed", "message": "No meaningful text extracted"}
 
     prompt = f"""Extract key legal document details from this text:
 
@@ -88,8 +88,10 @@ Return JSON with exactly these keys:
             contents=prompt
         )
 
-        return json.loads(response.text)
+        result = json.loads(response.text)
+        return {"status": "success", "data": result}
 
     except Exception as e:
         logging.error(f"Gemini legacy analysis error: {e}")
-        return {"error": str(e)}
+        return {"status": "failed", "message": str(e)}
+

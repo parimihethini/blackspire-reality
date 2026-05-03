@@ -54,7 +54,8 @@ Document:
 
         # Try direct JSON parse
         try:
-            return json.loads(raw_output)
+            parsed = json.loads(raw_output)
+            return {"status": "success", "data": parsed}
         except:
             pass
 
@@ -62,7 +63,8 @@ Document:
         match = re.search(r"\{.*\}", raw_output, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group())
+                parsed = json.loads(match.group())
+                return {"status": "success", "data": parsed}
             except:
                 pass
 
