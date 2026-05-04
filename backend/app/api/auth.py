@@ -217,6 +217,7 @@ async def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)
 
 @router.post("/forgot-password")
 async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
+    print("RESET EMAIL:", data.email)
     user = db.query(User).filter(User.email == data.email).first()
     if user:
         token = generate_token()
