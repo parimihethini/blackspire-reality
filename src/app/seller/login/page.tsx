@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, login, getPostLoginPath } from "@/lib/auth";
+import { apiPost } from "@/lib/httpClient";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Briefcase, AlertCircle } from "lucide-react";
@@ -55,6 +56,28 @@ export default function SellerLogin() {
         } finally {
             setIsLoading(false);
             console.log("Seller login ended", { loading: false });
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            alert("Please enter your email first");
+            return;
+        }
+
+        try {
+            const res = await apiPost('/auth/forgot-password', { email });
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) {
+                alert("Password reset link sent to your email");
+                console.log("EMAIL SENT:", email);
+            } else {
+                alert(data.message || data.detail || "Failed to send reset link");
+            }
+        } catch (err) {
+            console.error("Forgot password error:", err);
+            alert("Something went wrong");
         }
     };
 
@@ -137,9 +160,13 @@ export default function SellerLogin() {
                                 />
                             </div>
                             <div className="flex justify-end p-1">
-                                <Link href="/seller/forgot-password" className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline">
+                                <button
+                                    type="button"
+                                    onClick={handleForgotPassword}
+                                    className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline"
+                                >
                                     Forgot Password?
-                                </Link>
+                                </button>
                             </div>
                         </div>
 
@@ -154,12 +181,6 @@ export default function SellerLogin() {
                             {!isLoading && <ArrowRight className="w-5 h-5" />}
                         </motion.button>
 
-                        {/* Forgot Password */}
-                        <p style={{ textAlign: "center", marginTop: "12px" }}>
-                            <a href="/seller/forgot-password" style={{ color: "#4da3ff", fontWeight: "bold", fontSize: "14px" }}>
-                                Forgot Password?
-                            </a>
-                        </p>
 
                         <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
