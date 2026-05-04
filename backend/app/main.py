@@ -116,6 +116,21 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# ── CORS MIDDLEWARE (ADD FIRST) ────────────────────────────────────────────
+allowed = os.getenv(
+    "FRONTEND_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,https://blackspire-reality.vercel.app",
+)
+allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],
+    max_age=3600,
+)
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException):
@@ -128,21 +143,6 @@ async def unhandled_exception_handler(_: Request, exc: Exception):
         status_code=500,
         content={"detail": str(exc) or "Internal Server Error"},
     )
-
-# Configure CORS origins via environment variable `FRONTEND_ORIGINS`
-allowed = os.getenv(
-    "FRONTEND_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,https://blackspire-reality.vercel.app",
-)
-allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router,        prefix="/auth",        tags=["Authentication"])
