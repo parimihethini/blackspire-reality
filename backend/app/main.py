@@ -146,16 +146,35 @@ for o in settings.ALLOWED_ORIGINS:
 
 from slowapi.middleware import SlowAPIMiddleware
 
+# IMPORTANT: In Starlette, middleware is executed in REVERSE registration order.
+# So CORSMiddleware must be added LAST so it runs FIRST (outermost layer).
+# This ensures CORS preflight (OPTIONS) requests are handled before rate limiting.
 app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight for 1 hour
 )
+
+# ── Explicit OPTIONS handler to ensure preflight never hits auth/rate-limiting ──
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str, request: Request):
+    """Handle all CORS preflight OPTIONS requests explicitly."""
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600",
+        },
+    )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router,        prefix="/auth",        tags=["Authentication"])
