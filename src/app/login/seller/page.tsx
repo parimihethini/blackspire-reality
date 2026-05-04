@@ -124,7 +124,7 @@ export default function SellerLogin() {
                                 />
                             </div>
                             <div className="flex justify-end p-1">
-                                <Link href="/forgot-password" className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline">
+                                <Link href="/seller/forgot-password" className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline">
                                     Forgot Password?
                                 </Link>
                             </div>
