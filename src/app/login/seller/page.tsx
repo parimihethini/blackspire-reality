@@ -142,6 +142,21 @@ export default function SellerLogin() {
                             {!isLoading && <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1.5 transition-transform duration-300" />}
                         </motion.button>
 
+                        {/* Forgot Password Button */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="mt-3 text-center"
+                        >
+                            <Link 
+                                href="/seller/forgot-password" 
+                                className="inline-block px-6 py-2 bg-white/5 border border-[#7CC4FF]/40 text-[#7CC4FF] font-bold rounded-lg hover:bg-white/10 hover:border-[#7CC4FF]/70 transition-all duration-300 text-sm"
+                            >
+                                Forgot Password?
+                            </Link>
+                        </motion.div>
+
                         <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
                             <Link href="/register" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
