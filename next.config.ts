@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
 // Use Railway backend URL from env var, fallback to localhost for local dev
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000";
+let BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").trim();
+if (!BACKEND_URL.startsWith("http://") && !BACKEND_URL.startsWith("https://")) {
+  BACKEND_URL = `https://${BACKEND_URL}`;
+}
+if (BACKEND_URL.endsWith("/")) {
+  BACKEND_URL = BACKEND_URL.slice(0, -1);
+}
 
 const nextConfig: NextConfig = {
   // Prevent 308 redirects on trailing slashes which strip Authorization headers
