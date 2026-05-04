@@ -10,8 +10,11 @@ import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Briefcase, AlertCircle } from "lucide-react";
 
 export default function SellerLogin() {
+    const [step, setStep] = useState("login");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [otp, setOtp] = useState("");
+    const [newPassword, setNewPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
@@ -70,14 +73,56 @@ export default function SellerLogin() {
             const data = await res.json().catch(() => ({}));
 
             if (res.ok) {
-                alert("Password reset link sent to your email");
-                console.log("EMAIL SENT:", email);
+                alert("OTP sent to your email");
+                setStep("otp");
             } else {
                 alert(data.message || data.detail || "Failed to send reset link");
             }
         } catch (err) {
             console.error("Forgot password error:", err);
             alert("Something went wrong");
+        }
+    };
+
+    const verifyOtp = () => {
+        if (!otp || otp.length !== 6) {
+            alert("Please enter a valid 6-digit OTP");
+            return;
+        }
+        setStep("reset");
+    };
+
+    const resetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        
+        if (!newPassword || newPassword.length < 8) {
+            setError("Password must be at least 8 characters");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await apiPost('/auth/verify-reset-otp', {
+                email,
+                otp,
+                new_password: newPassword
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) {
+                alert("Password updated successfully");
+                setStep("login");
+                setPassword("");
+                setOtp("");
+                setNewPassword("");
+            } else {
+                setError(data.message || data.detail || "Failed to reset password");
+            }
+        } catch (err: any) {
+            setError("Something went wrong");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -131,64 +176,122 @@ export default function SellerLogin() {
                             )}
                         </motion.div>
                     )}
-                    
-                    <form className="flex flex-col gap-6 w-full relative z-10" onSubmit={handleLogin}>
-                        <div className="flex flex-col gap-2 relative group text-left w-full">
-                            <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">Agent Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0]" />
+                                       {step === "login" && (
+                        <form className="flex flex-col gap-6 w-full relative z-10" onSubmit={handleLogin}>
+                            <div className="flex flex-col gap-2 relative group text-left w-full">
+                                <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">Agent Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0]" />
+                                    <input 
+                                        type="email" 
+                                        placeholder="agent@example.com" 
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] transition-all" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2 relative group text-left w-full">
+                                <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">Password</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0]" />
+                                    <input 
+                                        type="password" 
+                                        placeholder="••••••••••••••" 
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] transition-all" 
+                                    />
+                                </div>
+                                <div className="flex justify-end p-1">
+                                    <button
+                                        type="button"
+                                        onClick={handleForgotPassword}
+                                        className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline"
+                                    >
+                                        Forgot Password?
+                                    </button>
+                                </div>
+                            </div>
+
+                            <motion.button 
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                type="submit" 
+                                disabled={isLoading}
+                                className="mt-4 w-full bg-gradient-to-r from-[#4DA3FF] to-[#7CC4FF] text-[#0A0F1F] font-extrabold py-4 rounded-xl shadow-[0_0_20px_rgba(77,163,255,0.3)] hover:shadow-[0_0_40px_rgba(77,163,255,0.6)] transition-all flex justify-center items-center gap-2"
+                            >
+                                {isLoading ? "Authenticating Portal..." : "Login to Portal"}
+                                {!isLoading && <ArrowRight className="w-5 h-5" />}
+                            </motion.button>
+
+                            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+                                <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
+                                <Link href="/register/seller" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold transition-colors">
+                                    Register as Seller
+                                </Link>
+                            </div>
+                        </form>
+                    )}
+
+                    {step === "otp" && (
+                        <div className="flex flex-col gap-6 w-full relative z-10">
+                            <h2 className="text-xl font-bold text-center text-[#FFFFFF]">Verify OTP</h2>
+                            <p className="text-sm text-center text-[#A0AEC0] -mt-4">We've sent a 6-digit code to {email}</p>
+                            <div className="relative group">
                                 <input 
-                                    type="email" 
-                                    placeholder="agent@example.com" 
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] transition-all" 
+                                    type="text" 
+                                    placeholder="Enter 6-digit OTP" 
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                    className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] focus:bg-[#0A0F1F]/90 text-center tracking-widest font-bold transition-all" 
                                 />
                             </div>
+                            <motion.button 
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                type="button"
+                                onClick={verifyOtp}
+                                className="mt-4 w-full bg-gradient-to-r from-[#4DA3FF] to-[#7CC4FF] text-[#0A0F1F] font-extrabold py-4 rounded-xl shadow-[0_0_20px_rgba(77,163,255,0.3)] transition-all"
+                            >
+                                Verify OTP
+                            </motion.button>
+                            <button type="button" onClick={() => setStep("login")} className="text-sm text-[#A0AEC0] hover:text-white mt-2 transition-colors">Back to Login</button>
                         </div>
+                    )}
 
-                        <div className="flex flex-col gap-2 relative group text-left w-full">
-                            <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0]" />
-                                <input 
-                                    type="password" 
-                                    placeholder="••••••••••••••" 
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] transition-all" 
-                                />
+                    {step === "reset" && (
+                        <form className="flex flex-col gap-6 w-full relative z-10" onSubmit={resetPassword}>
+                            <h2 className="text-xl font-bold text-center text-[#FFFFFF]">Set New Password</h2>
+                            <div className="relative group text-left">
+                                <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">New Password</label>
+                                <div className="relative mt-2">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0]" />
+                                    <input 
+                                        type="password" 
+                                        placeholder="New Password" 
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] focus:bg-[#0A0F1F]/90 transition-all" 
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                                <p className="text-xs text-[#A0AEC0]/70 ml-1 mt-2">At least 8 characters</p>
                             </div>
-                            <div className="flex justify-end p-1">
-                                <button
-                                    type="button"
-                                    onClick={handleForgotPassword}
-                                    className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline"
-                                >
-                                    Forgot Password?
-                                </button>
-                            </div>
-                        </div>
-
-                        <motion.button 
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit" 
-                            disabled={isLoading}
-                            className="mt-4 w-full bg-gradient-to-r from-[#4DA3FF] to-[#7CC4FF] text-[#0A0F1F] font-extrabold py-4 rounded-xl shadow-[0_0_20px_rgba(77,163,255,0.3)] hover:shadow-[0_0_40px_rgba(77,163,255,0.6)] transition-all flex justify-center items-center gap-2"
-                        >
-                            {isLoading ? "Authenticating Portal..." : "Login to Portal"}
-                            {!isLoading && <ArrowRight className="w-5 h-5" />}
-                        </motion.button>
-
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
-                            <Link href="/register/seller" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold transition-colors">
-                                Register as Seller
-                            </Link>
-                        </div>
-                    </form>
+                            <motion.button 
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                type="submit"
+                                disabled={isLoading}
+                                className="mt-4 w-full bg-gradient-to-r from-[#4DA3FF] to-[#7CC4FF] text-[#0A0F1F] font-extrabold py-4 rounded-xl shadow-[0_0_20px_rgba(77,163,255,0.3)] disabled:opacity-70 transition-all"
+                            >
+                                {isLoading ? "Updating..." : "Update Password"}
+                            </motion.button>
+                            <button type="button" onClick={() => setStep("login")} className="text-sm text-[#A0AEC0] hover:text-white mt-2 transition-colors text-center w-full">Cancel</button>
+                        </form>
+                    )}
                 </div>
             </motion.div>
         </main>
