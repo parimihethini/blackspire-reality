@@ -1,16 +1,24 @@
 import type { NextConfig } from "next";
 
+// Use Railway backend URL from env var, fallback to localhost for local dev
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
+
 const nextConfig: NextConfig = {
   // Prevent 308 redirects on trailing slashes which strip Authorization headers
   skipTrailingSlashRedirect: true,
+
   async rewrites() {
     return [
       {
+        // Proxy /api/* → Railway backend (works both locally and on Vercel)
         source: "/api/:path*",
-        destination: "http://127.0.0.1:8000/:path*", // Proxy to FastAPI Backend
+        destination: `${BACKEND_URL}/:path*`,
       },
     ];
   },
+
   async headers() {
     return [
       {
@@ -19,7 +27,10 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Credentials", value: "true" },
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
-          { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization",
+          },
         ],
       },
     ];

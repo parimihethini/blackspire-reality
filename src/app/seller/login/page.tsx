@@ -160,7 +160,6 @@ export default function SellerLogin() {
                                 Forgot Password?
                             </a>
                         </p>
-                        <p style={{ color: "red", textAlign: "center", fontSize: "10px" }}>UI UPDATED - SELLER LOGIN</p>
 
                         <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
