@@ -10,7 +10,9 @@ if (sanitizedBase && !sanitizedBase.startsWith("http://") && !sanitizedBase.star
 export const API_BASE = sanitizedBase;
 export const API_ORIGIN = API_BASE;
 
-console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+if (process.env.NODE_ENV === "development") {
+    console.log("[DEV] API URL:", process.env.NEXT_PUBLIC_API_URL);
+}
 
 /**
  * Ensures clean URL construction
