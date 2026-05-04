@@ -116,24 +116,11 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ── CORS MIDDLEWARE (ADD FIRST) ────────────────────────────────────────────
-allowed = os.getenv(
-    "FRONTEND_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,https://blackspire-reality.vercel.app",
-)
-allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    max_age=3600,
-)
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(_: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code >= 400:
+        print(f"[HTTP {exc.status_code}] {request.method} {request.url.path}: {exc.detail}")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
@@ -143,6 +130,32 @@ async def unhandled_exception_handler(_: Request, exc: Exception):
         status_code=500,
         content={"detail": str(exc) or "Internal Server Error"},
     )
+
+# Configure CORS origins
+# We combine settings from config.py and environment variable `FRONTEND_ORIGINS`
+raw_origins = os.getenv(
+    "FRONTEND_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,https://blackspire-reality.vercel.app",
+)
+allow_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+
+# Ensure all origins from settings are also included
+for o in settings.ALLOWED_ORIGINS:
+    if o not in allow_origins:
+        allow_origins.append(o)
+
+from slowapi.middleware import SlowAPIMiddleware
+
+app.add_middleware(SlowAPIMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router,        prefix="/auth",        tags=["Authentication"])
