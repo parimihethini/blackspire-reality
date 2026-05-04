@@ -135,6 +135,11 @@ export default function SellerLogin() {
                                     className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-4 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] transition-all" 
                                 />
                             </div>
+                            <div className="flex justify-end p-1">
+                                <Link href="/seller/forgot-password" className="text-xs text-[#7CC4FF] hover:text-[#FFFFFF] font-bold transition-all hover:underline">
+                                    Forgot Password?
+                                </Link>
+                            </div>
                         </div>
 
                         <motion.button 

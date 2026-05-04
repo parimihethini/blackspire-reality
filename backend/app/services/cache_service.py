@@ -1,5 +1,6 @@
 import redis.asyncio as aioredis
 import json
+import os
 from typing import Any, Optional
 
 from app.core.config import settings
@@ -11,13 +12,21 @@ class CacheService:
 
     async def connect(self):
         try:
+            # Skip if URL is explicitly set to empty or placeholder
+            if not settings.REDIS_URL or "localhost" in settings.REDIS_URL:
+                # If we're on Railway but still using localhost, it's likely not configured
+                if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+                    print("[Cache] Redis not configured (using default localhost in production). Caching disabled.")
+                    self._client = None
+                    return
+
             self._client = await aioredis.from_url(
                 settings.REDIS_URL, decode_responses=True
             )
             await self._client.ping()
             print("[Cache] Redis connected.")
         except Exception as e:
-            print(f"[Cache] Redis unavailable – caching disabled: {e}")
+            print(f"[Cache] Redis unavailable (Connection Error): {e}")
             self._client = None
 
     async def disconnect(self):

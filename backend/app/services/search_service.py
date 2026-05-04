@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, Optional
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
@@ -34,12 +35,19 @@ class SearchService:
 
     async def connect(self):
         try:
+            # Skip if URL is default localhost in production environments
+            if "localhost" in settings.ELASTICSEARCH_URL:
+                if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+                    print("[Search] Elasticsearch not configured (using default localhost in production). Full-text search disabled.")
+                    self._client = None
+                    return
+
             self._client = AsyncElasticsearch([settings.ELASTICSEARCH_URL])
             if not await self._client.indices.exists(index=INDEX):
                 await self._client.indices.create(index=INDEX, body=_MAPPING)
             print("[Search] Elasticsearch connected.")
         except Exception as e:
-            print(f"[Search] Elasticsearch unavailable – full-text search disabled: {e}")
+            print(f"[Search] Elasticsearch unavailable (Connection Error): {e}")
             self._client = None
 
     async def disconnect(self):
