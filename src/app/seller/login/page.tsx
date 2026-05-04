@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -152,6 +153,14 @@ export default function SellerLogin() {
                             {isLoading ? "Authenticating Portal..." : "Login to Portal"}
                             {!isLoading && <ArrowRight className="w-5 h-5" />}
                         </motion.button>
+
+                        {/* Forgot Password */}
+                        <p style={{ textAlign: "center", marginTop: "12px" }}>
+                            <a href="/seller/forgot-password" style={{ color: "#4da3ff", fontWeight: "bold", fontSize: "14px" }}>
+                                Forgot Password?
+                            </a>
+                        </p>
+                        <p style={{ color: "red", textAlign: "center", fontSize: "10px" }}>UI UPDATED - SELLER LOGIN</p>
 
                         <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
