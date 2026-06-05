@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import os
+import asyncio
 from pathlib import Path
 
 def _force_load_dotenv(dotenv_path: Path) -> None:
@@ -61,44 +62,83 @@ import app.models.favorite    # noqa
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Startup ──
-    # 1. Ensure basic tables exist
-    Base.metadata.create_all(bind=engine)
-    
-    # 2. Manual migration safety check (Self-Healing)
-    from sqlalchemy import inspect, text
+    # 1. Ensure basic tables exist (with timeout to prevent blocking)
     try:
-        with engine.connect() as conn:
-            inspector = inspect(engine)
-            columns = [c['name'] for c in inspector.get_columns('users')]
-            
-            # Add missing columns if they don't exist
-            if 'reset_otp_hash' not in columns:
-                print("[Migration] Adding reset_otp_hash to users...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_hash VARCHAR(255)"))
-            if 'reset_otp_expires_at' not in columns:
-                print("[Migration] Adding reset_otp_expires_at to users...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_expires_at TIMESTAMP WITH TIME ZONE"))
-            if 'reset_otp_attempts' not in columns:
-                print("[Migration] Adding reset_otp_attempts to users...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_attempts INTEGER DEFAULT 0"))
-            
-            conn.commit()
-            
-            # 3. Cloudinary Migration: Clear old local paths that are now broken
-            print("[Migration] Clearing legacy local profile image paths...")
-            conn.execute(text("UPDATE users SET profile_image = NULL WHERE profile_image LIKE 'uploads/%'"))
-            conn.commit()
-            
-            print("[Migration] Database schema check complete.")
+        print("[Startup] Creating database tables…")
+        loop = asyncio.get_event_loop()
+        await asyncio.wait_for(
+            loop.run_in_executor(None, Base.metadata.create_all, engine),
+            timeout=10.0
+        )
+        print("[Startup] Database tables ready.")
+    except asyncio.TimeoutError:
+        print("[Startup] Database table creation timed out (continuing anyway)")
     except Exception as e:
-        print(f"[Migration] Error during manual schema check: {e}")
+        print(f"[Startup] Warning: Database initialization error: {e} (continuing anyway)")
+    
+    # 2. Manual migration safety check (Self-Healing) - with timeout
+    try:
+        print("[Startup] Checking database schema…")
+        loop = asyncio.get_event_loop()
+        
+        async def _run_migrations():
+            from sqlalchemy import inspect, text
+            with engine.connect() as conn:
+                inspector = inspect(engine)
+                columns = [c['name'] for c in inspector.get_columns('users')]
+                
+                # Add missing columns if they don't exist
+                if 'reset_otp_hash' not in columns:
+                    print("[Migration] Adding reset_otp_hash to users...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_hash VARCHAR(255)"))
+                if 'reset_otp_expires_at' not in columns:
+                    print("[Migration] Adding reset_otp_expires_at to users...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_expires_at TIMESTAMP WITH TIME ZONE"))
+                if 'reset_otp_attempts' not in columns:
+                    print("[Migration] Adding reset_otp_attempts to users...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN reset_otp_attempts INTEGER DEFAULT 0"))
+                
+                conn.commit()
+                
+                # 3. Cloudinary Migration: Clear old local paths that are now broken
+                print("[Migration] Clearing legacy local profile image paths...")
+                conn.execute(text("UPDATE users SET profile_image = NULL WHERE profile_image LIKE 'uploads/%'"))
+                conn.commit()
+                
+                print("[Migration] Database schema check complete.")
+        
+        await asyncio.wait_for(_run_migrations(), timeout=10.0)
+    except asyncio.TimeoutError:
+        print("[Startup] Database migrations timed out (continuing with stale schema)")
+    except Exception as e:
+        print(f"[Startup] Warning: Database schema check failed: {e} (continuing anyway)")
 
-    await cache.connect()
-    await search.connect()
+    # 4. Connect to Redis cache (non-blocking, 5-second timeout)
+    try:
+        print("[Startup] Connecting to Redis cache…")
+        await asyncio.wait_for(cache.connect(), timeout=5.0)
+    except asyncio.TimeoutError:
+        print("[Startup] Redis connection timed out (cache disabled)")
+    except Exception as e:
+        print(f"[Startup] Redis connection failed: {e} (cache disabled)")
+
+    # 5. Connect to Elasticsearch (non-blocking, 5-second timeout)
+    try:
+        print("[Startup] Connecting to Elasticsearch…")
+        await asyncio.wait_for(search.connect(), timeout=5.0)
+    except asyncio.TimeoutError:
+        print("[Startup] Elasticsearch connection timed out (search disabled)")
+    except Exception as e:
+        print(f"[Startup] Elasticsearch connection failed: {e} (search disabled)")
+    
+    print("[Startup] Application startup complete ✓")
     yield
     # ── Shutdown ──
+    print("[Shutdown] Closing Redis…")
     await cache.disconnect()
+    print("[Shutdown] Closing Elasticsearch…")
     await search.disconnect()
+    print("[Shutdown] Application shutdown complete ✓")
 
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])
