@@ -1,37 +1,59 @@
 import os
 import pickle
 import base64
+import tempfile
 from pathlib import Path
 from email.mime.text import MIMEText
 from googleapiclient.discovery import build
 
-backend_dir = Path("/app") if os.getenv("RAILWAY_ENVIRONMENT") or os.name != 'nt' else Path(__file__).resolve().parents[2]
+# Determine the working directory for credential files
+# Prefer /tmp for Render/production (writable), fall back to project directory for local dev
+if os.getenv("RENDER") or os.getenv("RAILWAY_ENVIRONMENT") or (os.name != "nt" and os.path.exists("/app")):
+    # Production: Use /tmp which is always writable in containers
+    creds_dir = Path(tempfile.gettempdir())
+else:
+    # Local development: Use project backend directory
+    creds_dir = Path(__file__).resolve().parents[2]
 
-cred_path = backend_dir / "credentials.json"
-token_path = backend_dir / "token.pickle"
+# Ensure the directory exists
+creds_dir.mkdir(parents=True, exist_ok=True)
+
+cred_path = creds_dir / "credentials.json"
+token_path = creds_dir / "token.pickle"
 
 # DEBUG LOGS
+print(f"CREDENTIALS DIR: {creds_dir}")
+print(f"CRED_PATH: {cred_path}")
+print(f"TOKEN_PATH: {token_path}")
 print("CHECKING FILES...")
 print("cred exists:", cred_path.exists())
 print("token exists:", token_path.exists())
 
-# Create credentials.json
+# Create credentials.json from environment variable
 if not cred_path.exists():
     creds_base64 = os.getenv("GOOGLE_CREDENTIALS_BASE64")
     if creds_base64:
-        print("CREATING credentials.json from ENV")
-        with open(cred_path, "wb") as f:
-            f.write(base64.b64decode(creds_base64))
+        try:
+            print("CREATING credentials.json from ENV")
+            with open(cred_path, "wb") as f:
+                f.write(base64.b64decode(creds_base64))
+            print(f"Successfully created {cred_path}")
+        except Exception as e:
+            print(f"ERROR creating credentials.json: {e}")
     else:
         print("MISSING GOOGLE_CREDENTIALS_BASE64")
 
-# Create token.pickle
+# Create token.pickle from environment variable
 if not token_path.exists():
     token_base64 = os.getenv("GOOGLE_TOKEN_BASE64")
     if token_base64:
-        print("CREATING token.pickle from ENV")
-        with open(token_path, "wb") as f:
-            f.write(base64.b64decode(token_base64))
+        try:
+            print("CREATING token.pickle from ENV")
+            with open(token_path, "wb") as f:
+                f.write(base64.b64decode(token_base64))
+            print(f"Successfully created {token_path}")
+        except Exception as e:
+            print(f"ERROR creating token.pickle: {e}")
     else:
         print("MISSING GOOGLE_TOKEN_BASE64")
 
