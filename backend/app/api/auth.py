@@ -87,7 +87,7 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
 
     if settings.AUTH_DEBUG or settings.DEBUG:
-        preview = f"{hashed[:14]}…{hashed[-8:]}" if len(hashed) > 22 else hashed
+        preview = f"{hashed[:14]}...{hashed[-8:]}" if len(hashed) > 22 else hashed
         check = verify_password(data.password, user.hashed_password)
         print(f"[AUTH_DEBUG] register email={user.email} hash_stored={preview} verify_roundtrip={check}")
 
@@ -158,7 +158,7 @@ async def login(data: LoginRequest, db: Session = Depends(get_db)):
 
         if settings.AUTH_DEBUG or settings.DEBUG:
             hp = user.hashed_password if user else None
-            preview = f"{hp[:14]}…{hp[-8:]}" if hp and len(hp) > 22 else hp
+            preview = f"{hp[:14]}...{hp[-8:]}" if hp and len(hp) > 22 else hp
             print(
                 f"[AUTH_DEBUG] login email={data.email} user_found={bool(user)} "
                 f"stored_hash={preview} verify_ok={password_ok}"

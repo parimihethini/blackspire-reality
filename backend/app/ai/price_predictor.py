@@ -83,7 +83,7 @@ def _load_or_train() -> GradientBoostingRegressor:
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     if MODEL_PATH.exists():
         return joblib.load(MODEL_PATH)
-    print("[AI] Training price prediction model…")
+    print("[AI] Training price prediction model...")
     X, y = _generate_training_data()
     model = GradientBoostingRegressor(
         n_estimators=300, max_depth=5, learning_rate=0.05,

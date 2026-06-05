@@ -18,7 +18,7 @@ _embed_model = None
 def _get_embed_model():
     global _embed_model
     if _embed_model is None and _ST_AVAILABLE:
-        print("[AI] Loading sentence-transformer model…")
+        print("[AI] Loading sentence-transformer model...")
         _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
     return _embed_model
 

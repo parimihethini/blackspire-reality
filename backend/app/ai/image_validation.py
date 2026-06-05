@@ -22,7 +22,7 @@ _transform = None
 def _get_model():
     global _model, _transform
     if _model is None and _TORCH_AVAILABLE:
-        print("[AI] Loading ResNet-18 for image validation…")
+        print("[AI] Loading ResNet-18 for image validation...")
         weights = ResNet18_Weights.DEFAULT
         _model = resnet18(weights=weights)
         _model.eval()

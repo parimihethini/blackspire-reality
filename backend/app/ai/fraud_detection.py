@@ -34,7 +34,7 @@ def _load_or_train():
     if MODEL_PATH.exists() and SCALER_PATH.exists():
         return joblib.load(MODEL_PATH), joblib.load(SCALER_PATH)
 
-    print("[AI] Training fraud detection model…")
+    print("[AI] Training fraud detection model...")
     X = _generate_normal_data()
     scaler = StandardScaler()
     Xs = scaler.fit_transform(X)

@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     # Rate limiting (requests/minute)
     RATE_LIMIT: str = "60/minute"
 
+    def __init__(self, **values):
+        super().__init__(**values)
+        if self.DATABASE_URL and self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
     class Config:
         _backend_root = Path(__file__).resolve().parents[2]
         env_file = str(_backend_root / ".env")

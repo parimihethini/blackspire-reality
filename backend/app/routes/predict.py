@@ -28,7 +28,7 @@ def _load_model() -> Tuple[Optional[object], Optional[Tuple]]:
             print(f"[WARN] Model not found at {MODEL_PATH}")
             return None, None
             
-        print(f"[AI] Loading price prediction model from {MODEL_PATH}…")
+        print(f"[AI] Loading price prediction model from {MODEL_PATH}...")
         with open(MODEL_PATH, "rb") as f:
             _model = pickle.load(f)
             
