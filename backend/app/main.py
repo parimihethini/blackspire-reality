@@ -47,7 +47,25 @@ print("Loaded ENV from:", ENV_PATH)
 from app.core.config import settings
 from app.db.session import engine
 from app.db.base import Base
-from app.api import auth, users, properties, ai, analytics, investments, reviews, websockets, favorites, notifications, admin as admin_router, document_verification
+
+# Lazy import routers to avoid blocking at startup
+def _load_routers():
+    from app.api import auth, users, properties, ai, analytics, investments, reviews, websockets, favorites, notifications, admin as admin_router, document_verification
+    return {
+        'auth': auth.router,
+        'users': users.router,
+        'properties': properties.router,
+        'ai': ai.router,
+        'analytics': analytics.router,
+        'investments': investments.router,
+        'favorites': favorites.router,
+        'reviews': reviews.router,
+        'websockets': websockets.router,
+        'notifications': notifications.router,
+        'document_verification': document_verification.router,
+        'admin': admin_router.router,
+    }
+
 from app.services.cache_service import cache
 from app.services.search_service import search
 
@@ -83,51 +101,9 @@ async def _initialize_database_if_needed():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── Startup ──
-    # CRITICAL: Keep startup ultra-fast so Uvicorn binds to port before health check timeout
-    
-    is_render = os.getenv("RENDER") is not None
-    
-    # Start database initialization in background (non-blocking)
-    if is_render:
-        print("[Startup] Running on Render - initializing database in background")
-        asyncio.create_task(_initialize_database_if_needed())
-    else:
-        print("[Startup] Local environment - initializing database now")
-        await _initialize_database_if_needed()
-    
-    # Connect to optional services with ultra-short timeouts
-    # 4. Connect to Redis cache (non-blocking, 3-second timeout)
-    try:
-        print("[Startup] Attempting Redis connection…")
-        await asyncio.wait_for(cache.connect(), timeout=3.0)
-        print("[Startup] Redis connected ✓")
-    except (asyncio.TimeoutError, Exception) as e:
-        print(f"[Startup] Redis unavailable ({type(e).__name__}) - cache disabled")
-
-    # 5. Connect to Elasticsearch (non-blocking, 3-second timeout)
-    try:
-        print("[Startup] Attempting Elasticsearch connection…")
-        await asyncio.wait_for(search.connect(), timeout=3.0)
-        print("[Startup] Elasticsearch connected ✓")
-    except (asyncio.TimeoutError, Exception) as e:
-        print(f"[Startup] Elasticsearch unavailable ({type(e).__name__}) - search disabled")
-    
+    """Minimal startup for ultra-fast port binding on Render."""
     print("[Startup] Application startup complete ✓")
     yield
-    # ── Shutdown ──
-    print("[Shutdown] Closing cache…")
-    try:
-        await cache.disconnect()
-    except Exception as e:
-        print(f"[Shutdown] Cache disconnect error: {e}")
-    
-    print("[Shutdown] Closing search…")
-    try:
-        await search.disconnect()
-    except Exception as e:
-        print(f"[Shutdown] Search disconnect error: {e}")
-    
     print("[Shutdown] Application shutdown complete ✓")
 
 
@@ -207,20 +183,24 @@ async def preflight_handler(rest_of_path: str, request: Request):
     )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(auth.router,        prefix="/auth",        tags=["Authentication"])
-app.include_router(users.router,       prefix="/users",       tags=["Users"])
-app.include_router(properties.router,  prefix="/properties",  tags=["Properties"])
-app.include_router(ai.router,          prefix="/ai",          tags=["AI Systems"])
-app.include_router(analytics.router,   prefix="/analytics",   tags=["Analytics"])
-app.include_router(investments.router, prefix="/investments",  tags=["Investments"])
-app.include_router(favorites.router,   prefix="/favorites",    tags=["Favorites"])
-app.include_router(reviews.router,     prefix="/reviews",      tags=["Reviews"])
-app.include_router(websockets.router,  prefix="/ws",          tags=["WebSockets"])
-app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
-app.include_router(document_verification.router, prefix="/verification", tags=["Document Verification"])
-app.include_router(admin_router.router)
+# Load routers after app creation (lazy import to avoid blocking startup)
+_routers = _load_routers()
+app.include_router(_routers['auth'],                     prefix="/auth",            tags=["Authentication"])
+app.include_router(_routers['users'],                    prefix="/users",           tags=["Users"])
+app.include_router(_routers['properties'],               prefix="/properties",      tags=["Properties"])
+app.include_router(_routers['ai'],                       prefix="/ai",              tags=["AI Systems"])
+app.include_router(_routers['analytics'],                prefix="/analytics",       tags=["Analytics"])
+app.include_router(_routers['investments'],              prefix="/investments",     tags=["Investments"])
+app.include_router(_routers['favorites'],                prefix="/favorites",       tags=["Favorites"])
+app.include_router(_routers['reviews'],                  prefix="/reviews",         tags=["Reviews"])
+app.include_router(_routers['websockets'],               prefix="/ws",              tags=["WebSockets"])
+app.include_router(_routers['notifications'],            prefix="/notifications",   tags=["Notifications"])
+app.include_router(_routers['document_verification'],    prefix="/verification",    tags=["Document Verification"])
+app.include_router(_routers['admin'])
 
 
 @app.get("/health", tags=["Health"])
 async def health():
+    # Lazy-initialize database on first request
+    await _initialize_database_if_needed()
     return {"status": "healthy", "service": "Blackspire PropTech API", "version": "1.0.0"}
