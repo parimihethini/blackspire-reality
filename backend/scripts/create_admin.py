@@ -3,8 +3,8 @@ Create or upgrade a privileged user (admin bootstrap only — not exposed via AP
 
 Run from repo backend/:
 
-  python scripts/create_admin.py --email phase1.admin@blackspire.com --password '***REMOVED***' --name 'Phase 1 Test Admin'
-  python scripts/create_admin.py --email super@blackspire.com --password '***REMOVED***' --role super_admin
+  python scripts/create_admin.py --email admin@yourcompany.com --password '$ENV_ADMIN_PASSWORD' --name 'Platform Admin'
+  python scripts/create_admin.py --email admin@yourcompany.com --password '$ENV_ADMIN_PASSWORD' --role super_admin
 
 Allowed roles: admin, super_admin, team_member (internal staff only).
 """

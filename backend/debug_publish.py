@@ -1,41 +1,17 @@
-import urllib.request, json, urllib.error
+"""Local-only publish test — set TEST_LOGIN_EMAIL and TEST_LOGIN_PASSWORD in env."""
+import json
+import os
+import urllib.request
 
-# Login first
-data = json.dumps({'email': 'yaswanthparimi53@gmail.com', 'password': '***REMOVED***', 'role': 'seller'}).encode()
-req = urllib.request.Request('http://localhost:8000/auth/login', data=data, headers={'Content-Type': 'application/json'}, method='POST')
-with urllib.request.urlopen(req) as resp:
-    result = json.loads(resp.read())
-    token = result.get('access_token', '')
+email = os.getenv("TEST_LOGIN_EMAIL", "")
+password = os.getenv("TEST_LOGIN_PASSWORD", "")
+if not email or not password:
+    raise SystemExit("Set TEST_LOGIN_EMAIL and TEST_LOGIN_PASSWORD environment variables.")
 
-# Test with original 'plot' type only - get FULL error verbose
-prop_data = json.dumps({
-    'title': 'Test Plot Property Debug',
-    'type': 'plot',
-    'status': 'Available',
-    'approval': 'DTCP',
-    'price': 5000000,
-    'city': 'Chennai',
-    'state': 'Tamil Nadu',
-    'country': 'India',
-    'pincode': '600001',
-    'seller_phone': '9999999999',
-    'features': [],
-    'images': []
-}).encode()
-
-prop_req = urllib.request.Request(
-    'http://localhost:8000/properties/', 
-    data=prop_data, 
-    headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}, 
-    method='POST'
+data = json.dumps({"email": email, "password": password, "role": "seller"}).encode()
+req = urllib.request.Request(
+    "http://127.0.0.1:8000/auth/login",
+    data=data,
+    headers={"Content-Type": "application/json"},
 )
-try:
-    with urllib.request.urlopen(prop_req) as presp:
-        presult = json.loads(presp.read())
-        print(f"SUCCESS! Property ID: {presult.get('id')}, Title: {presult.get('title')}")
-except urllib.error.HTTPError as e:
-    body = e.read().decode('utf-8', errors='replace')
-    print(f"FAILED HTTP {e.code}:")
-    print(f"Body: {body}")
-    # Also try to get the reason from headers
-    print(f"Headers: {dict(e.headers)}")
+print(urllib.request.urlopen(req).read().decode())

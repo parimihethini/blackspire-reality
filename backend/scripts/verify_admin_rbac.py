@@ -23,6 +23,7 @@ import app.models.investment  # noqa: F401
 import app.models.rbac  # noqa: F401
 
 import httpx
+import os
 
 from app.core.security import decode_token
 from app.db.session import SessionLocal
@@ -157,8 +158,12 @@ def main() -> int:
     print("\n--- API checks ---")
     all_ok &= verify_public_registration_blocked(api_base)
 
-    login_ok, admin_token = verify_admin_login(api_base, TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD)
-    all_ok &= _print("Admin login via POST /auth/admin/login", login_ok)
+    if TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD:
+        login_ok, admin_token = verify_admin_login(api_base, TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD)
+        all_ok &= _print("Admin login via POST /auth/admin/login", login_ok)
+    else:
+        print("[SKIP] Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD env vars for admin login test")
+        login_ok, admin_token = False, None
     if admin_token:
         payload = decode_token(admin_token)
         all_ok &= _print(

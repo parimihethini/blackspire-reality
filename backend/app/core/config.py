@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # PostgreSQL
-    DATABASE_URL: str = "postgresql://postgres:***REMOVED***@127.0.0.1:5432/blackspire"
+    DATABASE_URL: str = "postgresql://postgres:postgres@127.0.0.1:5432/blackspire"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
