@@ -62,17 +62,29 @@ class Settings(BaseSettings):
             if self.DATABASE_URL.startswith("postgres://"):
                 self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
             
-            # Intercept and route Supabase direct connection strings to the IPv4-compatible pooler
-            # to avoid IPv6 "Network is unreachable" errors on platforms like Render free-tier.
-            if "db.hfhovkfvrgcunsadfvmm.supabase.co" in self.DATABASE_URL:
+            # Intercept and route Supabase connections to use the IPv4-compatible pooler
+            # and guarantee that the required scoped username is applied.
+            is_supabase = "supabase.co" in self.DATABASE_URL or "supabase.com" in self.DATABASE_URL
+            if is_supabase:
                 from urllib.parse import urlparse, urlunparse
                 parsed = urlparse(self.DATABASE_URL)
                 username = parsed.username or "postgres"
+                
+                # Enforce scoped username format
                 if not username.endswith(".hfhovkfvrgcunsadfvmm"):
                     username = f"{username}.hfhovkfvrgcunsadfvmm"
+                
+                # Check for direct connection host and route it to the IPv4 pooler
+                host = parsed.hostname
+                if host == "db.hfhovkfvrgcunsadfvmm.supabase.co":
+                    host = "aws-1-ap-northeast-1.pooler.supabase.com"
+                
                 password_str = f":{parsed.password}" if parsed.password is not None else ""
-                port_str = f":{parsed.port}" if parsed.port is not None else ":5432"
-                new_netloc = f"{username}{password_str}@aws-1-ap-northeast-1.pooler.supabase.com{port_str}"
+                port_str = f":{parsed.port}" if parsed.port is not None else ""
+                if not port_str and host == "aws-1-ap-northeast-1.pooler.supabase.com":
+                    port_str = ":5432"  # default to Session mode
+                
+                new_netloc = f"{username}{password_str}@{host}{port_str}"
                 self.DATABASE_URL = urlunparse(parsed._replace(netloc=new_netloc))
 
     class Config:
