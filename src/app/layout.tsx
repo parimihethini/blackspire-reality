@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 
 import WhatsAppButton from "@/components/WhatsAppButton";
 import SmartBackground from "@/components/SmartBackground";
+import Providers from "@/components/Providers";
 
 export default function RootLayout({
     children,
@@ -34,7 +35,9 @@ export default function RootLayout({
                 className={`${poppins.variable} ${inter.variable} antialiased min-h-screen text-[#FFFFFF] bg-transparent relative`}
             >
                 <SmartBackground />
-                {children}
+                <Providers>
+                    {children}
+                </Providers>
                 <WhatsAppButton />
             </body>
         </html>

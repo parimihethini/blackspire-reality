@@ -21,7 +21,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => {
         const auth = getAuth();
-        if (!auth || !auth.loggedIn || auth.role !== "admin") {
+        const role = (auth?.role || "").toLowerCase();
+        if (!auth || !auth.loggedIn || !["admin", "super_admin", "team_member"].includes(role)) {
             router.replace("/login/admin");
             return;
         }

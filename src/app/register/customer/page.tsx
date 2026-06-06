@@ -6,6 +6,7 @@ import { setAuth, register } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { User, Mail, Phone, Lock, ArrowRight, UserPlus } from "lucide-react";
+import OAuthButtons, { OAuthDivider } from "@/components/OAuthButtons";
 
 
 export default function CustomerRegister() {
@@ -13,6 +14,7 @@ export default function CustomerRegister() {
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
@@ -21,8 +23,18 @@ export default function CustomerRegister() {
         e.preventDefault();
         setError("");
 
-        if (!name || !email || !phone || !password) {
+        if (!name || !email || !phone || !password || !confirmPassword) {
             setError("Please fill in all fields.");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters.");
             return;
         }
 
@@ -160,6 +172,20 @@ export default function CustomerRegister() {
                             </div>
                         </div>
 
+                        <div className="flex flex-col gap-2 relative group">
+                            <label className="text-xs font-bold text-[#A0AEC0] ml-1 uppercase tracking-wider">Confirm Password</label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0AEC0] group-focus-within:text-[#7CC4FF] transition-colors duration-300" />
+                                <input
+                                    type="password"
+                                    placeholder="••••••••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full bg-[#0A0F1F]/60 border border-[#A0AEC0]/20 px-12 py-3.5 rounded-xl text-[#FFFFFF] outline-none focus:border-[#7CC4FF] focus:bg-[#0A0F1F]/90 transition-all duration-300 font-medium text-[15px] tracking-wider"
+                                />
+                            </div>
+                        </div>
+
                         {/* Submit Button */}
                         <motion.button 
                             whileHover={{ scale: 1.02 }}
@@ -171,14 +197,17 @@ export default function CustomerRegister() {
                             {isLoading ? "Creating Account..." : "Create Account"}
                             {!isLoading && <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1.5 transition-transform duration-300" />}
                         </motion.button>
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <span className="text-sm text-[#A0AEC0] font-medium">Already have an account?</span>
-                            <Link href="/login/customer" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
-                                Log in
-                            </Link>
-                        </div>
                     </form>
+
+                    <OAuthDivider />
+                    <OAuthButtons role="customer" />
+
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 relative z-10">
+                        <span className="text-sm text-[#A0AEC0] font-medium">Already have an account?</span>
+                        <Link href="/login/customer" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
+                            Log in
+                        </Link>
+                    </div>
                 </div>
             </motion.div>
         </main>

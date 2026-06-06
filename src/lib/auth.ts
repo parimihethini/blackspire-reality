@@ -2,7 +2,14 @@ import { authFetch, API_ORIGIN, apiPost } from "./httpClient";
 
 export interface AuthUser {
     id?: number;
-    role: "customer" | "seller" | "admin" | "investor";
+    role:
+        | "customer"
+        | "seller"
+        | "admin"
+        | "super_admin"
+        | "team_member"
+        | "startup_founder"
+        | "investor";
     email: string;
     name?: string;
     phone?: string;
@@ -12,6 +19,7 @@ export interface AuthUser {
 }
 
 const ROLE_KEY = "role";
+const REFRESH_KEY = "refresh_token";
 
 function maskToken(token?: string) {
     if (!token) return "missing";
@@ -104,8 +112,9 @@ export function getAuth(): AuthUser | null {
  */
 export function getPostLoginPath(role: unknown): string {
     const r = normalizeRole(role).toLowerCase();
-    if (r === "admin") return "/admin";
-    if (r === "seller") return "/seller/dashboard";
+    if (r === "admin" || r === "super_admin" || r === "team_member") return "/admin";
+    if (r === "seller" || r === "startup_founder") return "/seller/dashboard";
+    if (r === "investor") return "/investor/dashboard";
     return "/";
 }
 
@@ -174,6 +183,9 @@ export function setAuth(data: {
     if (roleStr) {
         localStorage.setItem(ROLE_KEY, roleStr);
     }
+    if (typeof data.refresh_token === "string" && data.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, data.refresh_token);
+    }
 
     console.log("[AUTH] Stored auth session", {
         email: (user as { email?: string }).email,
@@ -188,7 +200,42 @@ export function clearAuth() {
         localStorage.removeItem("auth");
         localStorage.removeItem("token");
         localStorage.removeItem(ROLE_KEY);
+        localStorage.removeItem(REFRESH_KEY);
         window.dispatchEvent(new Event("storage"));
+    }
+}
+
+export async function logout() {
+    try {
+        await apiPost("/auth/logout", {});
+    } catch {
+        // stateless logout — clear client session regardless
+    }
+    clearAuth();
+}
+
+export async function refreshAccessToken(): Promise<boolean> {
+    if (typeof window === "undefined") return false;
+    const refresh = localStorage.getItem(REFRESH_KEY);
+    if (!refresh) return false;
+
+    try {
+        const response = await apiPost("/auth/refresh", { refresh_token: refresh });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.access_token) return false;
+
+        const session = readStoredSession();
+        if (!session) return false;
+
+        setAuth({
+            access_token: data.access_token,
+            refresh_token: refresh,
+            role: data.role ?? session.user.role,
+            user: session.user,
+        });
+        return true;
+    } catch {
+        return false;
     }
 }
 
@@ -205,6 +252,7 @@ export function replaceSessionFromLoginResponse(data: {
     const role = data.role ?? normalizeRole(data.user?.role);
     setAuth({
         access_token: data.access_token,
+        refresh_token: data.refresh_token,
         user: data.user,
         role,
     });

@@ -14,6 +14,7 @@ def _import_all_models() -> None:
     import app.models.investment # noqa: F401
     import app.models.review     # noqa: F401
     import app.models.favorite   # noqa: F401
+    import app.models.rbac       # noqa: F401
 
 
 def _alembic_version_exists() -> bool:
@@ -48,3 +49,12 @@ def ensure_schema() -> None:
     else:
         command.stamp(alembic_cfg, "head")
         print("[DB] Fresh database — Alembic stamped to head [OK]")
+
+    from app.db.session import SessionLocal
+    from app.db.seed_rbac import seed_rbac
+
+    db = SessionLocal()
+    try:
+        seed_rbac(db)
+    finally:
+        db.close()

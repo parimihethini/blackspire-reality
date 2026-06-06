@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # Email Settings
     EMAIL_FROM: str = "blackspirereality@gmail.com"
 
+    # OAuth (optional — set when enabling social login)
+    GOOGLE_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_SECRET: str = ""
+
     # CORS origins
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",

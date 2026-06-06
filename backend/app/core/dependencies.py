@@ -99,3 +99,21 @@ get_any_user = require_role(
     "customer", "seller", "admin",
     "super_admin", "team_member", "startup_founder", "investor",
 )
+
+
+def require_permission(permission_name: str):
+    """RBAC permission guard using roles/permissions tables."""
+    from app.core.permissions import user_has_permission
+
+    async def checker(
+        current_user=Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        if not user_has_permission(db, current_user, permission_name):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied: {permission_name}",
+            )
+        return current_user
+
+    return checker

@@ -28,9 +28,14 @@ class User(Base):
     name = Column(String(150), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     phone = Column(String(20), nullable=True)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)
     role = Column(SAEnum(UserRole), nullable=False)
     profile_image = Column(String(500), nullable=True)
+
+    # OAuth provider linkage (Phase 1)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
+    linkedin_id = Column(String(255), unique=True, nullable=True, index=True)
+    auth_provider = Column(String(50), nullable=True, default="email")
 
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)

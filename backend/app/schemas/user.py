@@ -119,6 +119,21 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    role: Optional[str] = "customer"
+
+
+class LinkedInAuthRequest(BaseModel):
+    code: str
+    redirect_uri: str
+    role: Optional[str] = "customer"
+
+
+class LogoutResponse(BaseModel):
+    message: str = "Logged out successfully"
+
+
 class AdminUserRoleUpdate(BaseModel):
     role: UserRole
 

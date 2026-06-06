@@ -19,11 +19,20 @@ from app.core.security import (
 from app.schemas.user import (
     UserCreate, LoginRequest, TokenResponse, OTPVerifyRequest,
     PasswordResetRequest, PasswordResetConfirm, RefreshTokenRequest,
-    ResetOTPVerifyRequest
+    ResetOTPVerifyRequest, GoogleAuthRequest, LinkedInAuthRequest, LogoutResponse,
 )
 from app.services.email_service import send_otp_email, send_reset_email, EmailDeliveryError
+from app.services.oauth_service import OAuthError, verify_google_id_token, exchange_linkedin_code, linkedin_auth_url
+from app.core.permissions import sync_user_role_assignment
 
 router = APIRouter()
+
+# Roles that cannot be created via public registration or OAuth self-signup
+_BLOCKED_PUBLIC_ROLES = {
+    UserRole.admin,
+    UserRole.super_admin,
+    UserRole.team_member,
+}
 
 
 def _role_str(value) -> str:
@@ -49,15 +58,78 @@ def _normalize_login_role(value) -> str | None:
     role = _role_str(value).strip().lower()
     if role == "agent":
         return "seller"
+    if role == "founder":
+        return "startup_founder"
     return role
+
+
+def _resolve_signup_role(role_value: str | None, default: UserRole = UserRole.customer) -> UserRole:
+    role = _normalize_login_role(role_value) or default.value
+    mapping = {
+        "customer": UserRole.customer,
+        "seller": UserRole.seller,
+        "investor": UserRole.investor,
+        "startup_founder": UserRole.startup_founder,
+    }
+    resolved = mapping.get(role, default)
+    if resolved in _BLOCKED_PUBLIC_ROLES:
+        raise HTTPException(status_code=403, detail=f"Role '{role}' cannot be assigned via self-registration.")
+    return resolved
+
+
+def _oauth_login_or_register(
+    db: Session,
+    *,
+    email: str,
+    name: str,
+    provider: str,
+    google_id: str | None = None,
+    linkedin_id: str | None = None,
+    profile_image: str | None = None,
+    role: UserRole = UserRole.customer,
+) -> User:
+    user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
+
+    if user:
+        if google_id and not user.google_id:
+            user.google_id = google_id
+        if linkedin_id and not user.linkedin_id:
+            user.linkedin_id = linkedin_id
+        if profile_image and not user.profile_image:
+            user.profile_image = profile_image
+        user.auth_provider = provider
+        user.is_verified = True
+        sync_user_role_assignment(db, user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    user = User(
+        name=name,
+        email=email,
+        hashed_password=None,
+        role=role,
+        profile_image=profile_image,
+        google_id=google_id,
+        linkedin_id=linkedin_id,
+        auth_provider=provider,
+        is_verified=True,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    sync_user_role_assignment(db, user)
+    db.commit()
+    return user
 
 
 @router.post("/register", status_code=201)
 async def register(data: UserCreate, db: Session = Depends(get_db)):
-    if data.role == UserRole.admin:
+    if data.role in _BLOCKED_PUBLIC_ROLES:
         raise HTTPException(
             status_code=403,
-            detail="Admin accounts cannot be created through public registration.",
+            detail="This account type cannot be created through public registration.",
         )
 
     # Block duplicate email across ALL roles
@@ -85,6 +157,8 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    sync_user_role_assignment(db, user)
+    db.commit()
 
     if settings.AUTH_DEBUG or settings.DEBUG:
         preview = f"{hashed[:14]}...{hashed[-8:]}" if len(hashed) > 22 else hashed
@@ -172,16 +246,23 @@ async def login(data: LoginRequest, db: Session = Depends(get_db)):
 
         if not user:
             raise HTTPException(status_code=401, detail="No account found for this email")
+        if not user.hashed_password:
+            raise HTTPException(
+                status_code=401,
+                detail="This account uses social login. Sign in with Google or LinkedIn.",
+            )
         if not password_ok:
             raise HTTPException(status_code=401, detail="Invalid password")
 
         requested_role = _normalize_login_role(data.role)
         actual_role = _normalize_login_role(user.role)
         if requested_role is not None and actual_role != requested_role:
-            raise HTTPException(
-                status_code=403,
-                detail=f"This email is registered as '{actual_role}', not '{requested_role}'.",
-            )
+            admin_alias = requested_role == "admin" and actual_role == "super_admin"
+            if not admin_alias:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"This email is registered as '{actual_role}', not '{requested_role}'.",
+                )
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Account is deactivated")
         if not user.is_verified:
@@ -264,6 +345,83 @@ async def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_d
     user.reset_otp_attempts = 0
     db.commit()
     return {"message": "Password reset successfully"}
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout():
+    """Stateless JWT logout — client clears stored tokens."""
+    return LogoutResponse()
+
+
+@router.post("/admin/login", response_model=TokenResponse)
+async def admin_login(data: LoginRequest, db: Session = Depends(get_db)):
+    """Dedicated admin portal login (admin + super_admin only)."""
+    email = data.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user or not user.hashed_password:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    if not verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    if _role_str(user.role) not in ("admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Not an admin account.")
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Account is deactivated")
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Email not verified.")
+    return _build_token_response(user)
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(data: GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        profile = verify_google_id_token(data.id_token)
+    except OAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    role = _resolve_signup_role(data.role)
+    user = _oauth_login_or_register(
+        db,
+        email=profile["email"],
+        name=profile["name"],
+        provider="google",
+        google_id=profile["google_id"],
+        profile_image=profile.get("picture"),
+        role=role,
+    )
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Account is deactivated")
+    return _build_token_response(user)
+
+
+@router.get("/linkedin/url")
+async def linkedin_auth_url_endpoint(redirect_uri: str, state: str = "blackspire"):
+    try:
+        url = linkedin_auth_url(redirect_uri, state)
+    except OAuthError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return {"url": url}
+
+
+@router.post("/linkedin", response_model=TokenResponse)
+async def linkedin_auth(data: LinkedInAuthRequest, db: Session = Depends(get_db)):
+    try:
+        profile = exchange_linkedin_code(data.code, data.redirect_uri)
+    except OAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    role = _resolve_signup_role(data.role)
+    user = _oauth_login_or_register(
+        db,
+        email=profile["email"],
+        name=profile["name"],
+        provider="linkedin",
+        linkedin_id=profile["linkedin_id"],
+        profile_image=profile.get("picture"),
+        role=role,
+    )
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Account is deactivated")
+    return _build_token_response(user)
 
 
 @router.post("/verify-reset-otp")

@@ -6,6 +6,7 @@ import { login, getPostLoginPath } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import OAuthButtons, { OAuthDivider } from "@/components/OAuthButtons";
 
 export default function CustomerLogin() {
     const [email, setEmail] = useState("");
@@ -135,14 +136,17 @@ export default function CustomerLogin() {
                             {isLoading ? "Authenticating Platform..." : "Secure Sign In"}
                             {!isLoading && <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1.5 transition-transform duration-300" />}
                         </motion.button>
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <span className="text-sm text-[#A0AEC0] font-medium">Don't have an account?</span>
-                            <Link href="/register" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
-                                Request Access
-                            </Link>
-                        </div>
                     </form>
+
+                    <OAuthDivider />
+                    <OAuthButtons role="customer" />
+
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 relative z-10">
+                        <span className="text-sm text-[#A0AEC0] font-medium">Don't have an account?</span>
+                        <Link href="/register" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
+                            Request Access
+                        </Link>
+                    </div>
                 </div>
             </motion.div>
         </main>

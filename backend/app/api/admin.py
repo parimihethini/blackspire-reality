@@ -11,10 +11,15 @@ from app.models.property import Property, SiteVisit
 from app.models.review import Review
 from app.models.investment import Investment
 from app.core.dependencies import get_current_admin_user
+from app.core.permissions import sync_user_role_assignment
 from app.schemas.user import UserResponse, AdminUserRoleUpdate, AdminStatsResponse
 from app.schemas.property import PropertyResponse, AdminPropertyApprove
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+def _role_str(role) -> str:
+    return role.value if hasattr(role, "value") else str(role)
 
 
 def _purge_property_children(db: Session, property_id: int) -> None:
@@ -68,8 +73,14 @@ async def admin_delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
+    if user.role == UserRole.super_admin:
+        raise HTTPException(status_code=400, detail="Super admin accounts cannot be deleted.")
+
     if user.role == UserRole.admin:
-        others = db.query(User).filter(User.role == UserRole.admin, User.id != user_id).count()
+        others = db.query(User).filter(
+            User.role.in_([UserRole.admin, UserRole.super_admin]),
+            User.id != user_id,
+        ).count()
         if others < 1:
             raise HTTPException(status_code=400, detail="Cannot delete the last admin account.")
 
@@ -90,17 +101,25 @@ async def admin_update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    if user.id == admin.id and body.role != UserRole.admin:
+    if user.id == admin.id and body.role not in (UserRole.admin, UserRole.super_admin):
         raise HTTPException(status_code=400, detail="Cannot demote your own admin account.")
 
-    if user.role == UserRole.admin and body.role != UserRole.admin:
-        others = db.query(User).filter(User.role == UserRole.admin, User.id != user_id).count()
+    if body.role == UserRole.super_admin and _role_str(admin.role) != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super admins can assign the super_admin role.")
+
+    if user.role in (UserRole.admin, UserRole.super_admin) and body.role not in (UserRole.admin, UserRole.super_admin):
+        others = db.query(User).filter(
+            User.role.in_([UserRole.admin, UserRole.super_admin]),
+            User.id != user_id,
+        ).count()
         if others < 1:
             raise HTTPException(status_code=400, detail="Cannot remove the last admin role.")
 
     user.role = body.role
     db.commit()
     db.refresh(user)
+    sync_user_role_assignment(db, user)
+    db.commit()
     return user
 
 

@@ -8,6 +8,7 @@ import { apiPost } from "@/lib/httpClient";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Briefcase, AlertCircle } from "lucide-react";
+import OAuthButtons, { OAuthDivider } from "@/components/OAuthButtons";
 
 export default function SellerLogin() {
     const [step, setStep] = useState("login");
@@ -225,14 +226,21 @@ export default function SellerLogin() {
                                 {isLoading ? "Authenticating Portal..." : "Login to Portal"}
                                 {!isLoading && <ArrowRight className="w-5 h-5" />}
                             </motion.button>
+                        </form>
+                    )}
 
-                            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+                    {step === "login" && (
+                        <>
+                            <OAuthDivider />
+                            <OAuthButtons role="seller" />
+
+                            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 relative z-10">
                                 <span className="text-sm text-[#A0AEC0] font-medium">Want to list your property?</span>
                                 <Link href="/register/seller" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold transition-colors">
                                     Register as Seller
                                 </Link>
                             </div>
-                        </form>
+                        </>
                     )}
 
                     {step === "otp" && (

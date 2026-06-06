@@ -6,6 +6,7 @@ import { setAuth, register } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { User, Mail, Phone, Lock, ArrowRight, Briefcase } from "lucide-react";
+import OAuthButtons, { OAuthDivider } from "@/components/OAuthButtons";
 
 
 export default function SellerRegister() {
@@ -166,14 +167,17 @@ export default function SellerRegister() {
                             {isLoading ? "Creating Portal Account..." : "Register as Seller"}
                             {!isLoading && <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1.5 transition-transform duration-300" />}
                         </motion.button>
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <span className="text-sm text-[#A0AEC0] font-medium">Already a seller?</span>
-                            <Link href="/login/seller" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
-                                Log in
-                            </Link>
-                        </div>
                     </form>
+
+                    <OAuthDivider />
+                    <OAuthButtons role="seller" />
+
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 relative z-10">
+                        <span className="text-sm text-[#A0AEC0] font-medium">Already a seller?</span>
+                        <Link href="/login/seller" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold hover:underline transition-colors drop-shadow-[0_0_5px_rgba(124,196,255,0.4)]">
+                            Log in
+                        </Link>
+                    </div>
                 </div>
             </motion.div>
         </main>

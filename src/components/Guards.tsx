@@ -1,46 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
-export function SellerOnly({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) {
-    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+type RoleName =
+    | "customer"
+    | "seller"
+    | "admin"
+    | "super_admin"
+    | "team_member"
+    | "startup_founder"
+    | "investor";
+
+function roleAllowed(userRole: string, allowed: RoleName[]): boolean {
+    const role = userRole.toLowerCase();
+    if (allowed.includes(role as RoleName)) return true;
+    if (allowed.includes("admin") && role === "super_admin") return true;
+    if (allowed.includes("customer") && role === "investor") return true;
+    if (allowed.includes("seller") && role === "startup_founder") return true;
+    return false;
+}
+
+export function SellerOnly({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
+    const { user, isLoading } = useAuth();
     const router = useRouter();
+    const [ok, setOk] = useState<boolean | null>(null);
 
     useEffect(() => {
-        const auth = getAuth();
-        if (auth && auth.role === "seller") {
-            setIsAuthorized(true);
-        } else {
-            setIsAuthorized(false);
-            if (!fallback) router.push("/");
-        }
-    }, [fallback, router]);
+        if (isLoading) return;
+        const allowed = user?.loggedIn && roleAllowed(user.role, ["seller", "startup_founder"]);
+        setOk(Boolean(allowed));
+        if (!allowed && !fallback) router.push("/login/seller");
+    }, [user, isLoading, fallback, router]);
 
-    if (isAuthorized === null) return null; // loading
-    if (!isAuthorized) return <>{fallback}</>;
-    
+    if (isLoading || ok === null) return null;
+    if (!ok) return <>{fallback}</>;
     return <>{children}</>;
 }
 
-export function CustomerOnly({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) {
-    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+export function CustomerOnly({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
+    const { user, isLoading } = useAuth();
     const router = useRouter();
+    const [ok, setOk] = useState<boolean | null>(null);
 
     useEffect(() => {
-        const auth = getAuth();
-        // Since visitors could also see some customer parts, this specifically enforces 'customer' role
-        if (auth && auth.role === "customer") {
-            setIsAuthorized(true);
-        } else {
-            setIsAuthorized(false);
-            if (!fallback) router.push("/login/customer");
-        }
-    }, [fallback, router]);
+        if (isLoading) return;
+        const allowed = user?.loggedIn && roleAllowed(user.role, ["customer", "investor"]);
+        setOk(Boolean(allowed));
+        if (!allowed && !fallback) router.push("/login/customer");
+    }, [user, isLoading, fallback, router]);
 
-    if (isAuthorized === null) return null; // loading
-    if (!isAuthorized) return <>{fallback}</>;
-    
+    if (isLoading || ok === null) return null;
+    if (!ok) return <>{fallback}</>;
+    return <>{children}</>;
+}
+
+export function RoleGuard({
+    roles,
+    children,
+    fallback,
+    redirectTo = "/login",
+}: {
+    roles: RoleName[];
+    children: ReactNode;
+    fallback?: ReactNode;
+    redirectTo?: string;
+}) {
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
+    const [ok, setOk] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        if (isLoading) return;
+        const allowed = user?.loggedIn && roleAllowed(user.role, roles);
+        setOk(Boolean(allowed));
+        if (!allowed && !fallback) router.push(redirectTo);
+    }, [user, isLoading, roles, fallback, redirectTo, router]);
+
+    if (isLoading || ok === null) return null;
+    if (!ok) return <>{fallback ?? null}</>;
     return <>{children}</>;
 }

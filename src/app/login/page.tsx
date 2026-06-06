@@ -6,6 +6,7 @@ import { login, getAuth, getPostLoginPath } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, UserCircle, AlertCircle } from "lucide-react";
+import OAuthButtons, { OAuthDivider } from "@/components/OAuthButtons";
 
 // Mock customer credentials for demo
 const MOCK_CUSTOMER = { email: "customer@demo.com", password: "demo123" };
@@ -145,14 +146,17 @@ export default function CustomerLogin() {
                             {isLoading ? "Signing In..." : "Secure Sign In"}
                             {!isLoading && <ArrowRight className="w-5 h-5" />}
                         </motion.button>
-
-                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <span className="text-sm text-[#A0AEC0] font-medium">Don't have an account?</span>
-                            <Link href="/register/customer" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold transition-colors">
-                                Register as Buyer
-                            </Link>
-                        </div>
                     </form>
+
+                    <OAuthDivider />
+                    <OAuthButtons role="customer" />
+
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 relative z-10">
+                        <span className="text-sm text-[#A0AEC0] font-medium">Don't have an account?</span>
+                        <Link href="/register/customer" className="text-[#7CC4FF] hover:text-[#FFFFFF] text-sm font-bold transition-colors">
+                            Register as Buyer
+                        </Link>
+                    </div>
                 </div>
             </motion.div>
         </main>
