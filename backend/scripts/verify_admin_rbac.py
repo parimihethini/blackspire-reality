@@ -31,9 +31,9 @@ from app.models.rbac import Role, Permission
 from app.models.user import User, UserRole
 from app.core.permissions import user_has_permission
 
-TEST_ADMIN_EMAIL = "phase1.admin@blackspire.com"
-TEST_ADMIN_PASSWORD = "***REMOVED***"
-TEST_CUSTOMER_EMAIL = "phase1.customer@gmail.com"
+TEST_ADMIN_EMAIL = os.getenv("TEST_ADMIN_EMAIL", "")
+TEST_ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "")
+TEST_CUSTOMER_EMAIL = os.getenv("TEST_CUSTOMER_EMAIL", "")
 
 
 def _print(title: str, ok: bool, detail: str = "") -> bool:
