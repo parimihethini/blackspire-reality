@@ -12,8 +12,11 @@ from typing import Optional
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from app.core.config import settings
+
+GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
 
 
 class EmailDeliveryError(Exception):
@@ -98,6 +101,13 @@ def _load_credentials() -> Credentials:
             "Gmail credentials are invalid. Regenerate token.pickle and update GOOGLE_TOKEN_BASE64."
         )
 
+    scopes = set(creds.scopes or [])
+    if GMAIL_SEND_SCOPE not in scopes:
+        raise EmailDeliveryError(
+            "Gmail token is missing the gmail.send scope. "
+            "Run backend/generate_token.py while signed in as blackspirereality@gmail.com."
+        )
+
     return creds
 
 
@@ -113,18 +123,15 @@ def _get_gmail_service():
 
 
 def verify_email_service() -> bool:
-    """Validate Gmail OAuth at startup; logs actionable errors."""
+    """Validate Gmail OAuth credentials without calling read-only Gmail APIs."""
     global _email_ready
     try:
-        service = _get_gmail_service()
-        profile = service.users().getProfile(userId="me").execute()
-        sender = profile.get("emailAddress", settings.EMAIL_FROM)
-        print(f"[Email] Verified sender: {sender}")
-        if sender.lower() != settings.EMAIL_FROM.lower():
-            print(
-                f"[Email] WARNING: Gmail token is for {sender}, "
-                f"but EMAIL_FROM is {settings.EMAIL_FROM}"
-            )
+        creds = _load_credentials()
+        _get_gmail_service()
+        print(
+            f"[Email] OAuth ready for {settings.EMAIL_FROM} "
+            f"(scopes: {', '.join(creds.scopes or [])})"
+        )
         _email_ready = True
         print("[Email] Verification OK")
         return True
@@ -136,6 +143,15 @@ def verify_email_service() -> bool:
         _email_ready = False
         print(f"[Email] Verification FAILED: {e}")
         return False
+
+
+def _format_gmail_http_error(exc: HttpError) -> str:
+    if exc.resp.status == 403:
+        return (
+            f"Gmail permission denied for {settings.EMAIL_FROM}. "
+            "Regenerate token.pickle with gmail.send scope while signed in as that account."
+        )
+    return f"Gmail send failed ({exc.resp.status}): {exc}"
 
 
 def send_email_gmail(to_email: str, subject: str, body_html: str) -> None:
@@ -152,6 +168,8 @@ def send_email_gmail(to_email: str, subject: str, body_html: str) -> None:
         print(f"[Email] Sent '{subject}' to {to_email}")
     except EmailDeliveryError:
         raise
+    except HttpError as e:
+        raise EmailDeliveryError(_format_gmail_http_error(e)) from e
     except Exception as e:
         raise EmailDeliveryError(f"Gmail send failed: {e}") from e
 
