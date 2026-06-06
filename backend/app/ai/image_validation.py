@@ -1,62 +1,66 @@
 """
-Image validation using torchvision pretrained ResNet-18.
-Checks if uploaded images are real property photos (not blank, corrupted, or irrelevant).
+Image validation — lightweight PIL-only implementation.
+
+PyTorch / torchvision have been removed (too heavy for Render 512 MB free tier).
+This module performs structural image quality checks using Pillow only:
+  - File is a valid image (not corrupt)
+  - Resolution is adequate (>= 200 x 200 px)
+  - File size is meaningful (> 5 KB)
+  - Format is an accepted type (JPEG, PNG, WEBP, GIF, BMP)
+
+The response schema is identical to the previous ResNet-18 version so all
+callers continue to work without changes.
 """
 import io
 from typing import Dict, Any
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
-try:
-    import torch
-    import torchvision.transforms as T
-    from torchvision.models import resnet18, ResNet18_Weights
-    _TORCH_AVAILABLE = True
-except ImportError:
-    _TORCH_AVAILABLE = False
+# Formats we consider acceptable property uploads
+ACCEPTED_FORMATS = {"JPEG", "PNG", "WEBP", "GIF", "BMP"}
 
-_model = None
-_transform = None
-
-
-def _get_model():
-    global _model, _transform
-    if _model is None and _TORCH_AVAILABLE:
-        print("[AI] Loading ResNet-18 for image validation...")
-        weights = ResNet18_Weights.DEFAULT
-        _model = resnet18(weights=weights)
-        _model.eval()
-        _transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-    return _model, _transform
-
-
-# ImageNet classes we consider "property-relevant"
-PROPERTY_RELATED = {
-    "house", "building", "home", "architecture", "wall", "ceiling", "floor",
-    "window", "door", "staircase", "balcony", "pool", "garden", "land",
-    "street", "suburban", "villa", "apartment", "mansion",
-}
+MIN_DIMENSION_PX = 200   # pixels — both width and height must meet this
+MIN_FILE_BYTES   = 5_000 # 5 KB — reject suspiciously tiny files
+MAX_FILE_BYTES   = 10 * 1024 * 1024  # 10 MB (enforced by caller, checked here too)
 
 
 def validate_image(file_bytes: bytes) -> Dict[str, Any]:
+    """
+    Validate an uploaded image using PIL only.
+
+    Returns a dict with the same keys as the previous torch-based version:
+      is_valid, label, confidence, is_property_image, issues
+    """
     issues = []
 
-    if not _TORCH_AVAILABLE:
+    # ── File size guard ───────────────────────────────────────────────────────
+    if len(file_bytes) < MIN_FILE_BYTES:
+        issues.append(f"Image file size suspiciously small ({len(file_bytes)} bytes < {MIN_FILE_BYTES})")
+
+    if len(file_bytes) > MAX_FILE_BYTES:
+        issues.append(f"Image exceeds maximum allowed size (10 MB)")
         return {
-            "is_valid": True,
-            "label": "unknown",
+            "is_valid": False,
+            "label": "oversized",
             "confidence": 0.0,
-            "is_property_image": True,
-            "issues": ["torch/torchvision not installed – image accepted without deep validation"],
+            "is_property_image": False,
+            "issues": issues,
         }
 
+    # ── Open and decode ───────────────────────────────────────────────────────
     try:
+        img = Image.open(io.BytesIO(file_bytes))
+        img.verify()  # checks for truncation / corruption without full decode
+        # Re-open after verify (verify closes the file pointer)
         img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    except UnidentifiedImageError:
+        return {
+            "is_valid": False,
+            "label": "unrecognized",
+            "confidence": 0.0,
+            "is_property_image": False,
+            "issues": ["Cannot open image: unrecognized file format"],
+        }
     except Exception as e:
         return {
             "is_valid": False,
@@ -66,37 +70,29 @@ def validate_image(file_bytes: bytes) -> Dict[str, Any]:
             "issues": [f"Cannot open image: {str(e)}"],
         }
 
-    # Basic quality checks
+    # ── Format check ─────────────────────────────────────────────────────────
+    fmt = (img.format or "").upper()
+    if fmt and fmt not in ACCEPTED_FORMATS:
+        issues.append(f"Unsupported image format: {fmt}. Accepted: {', '.join(sorted(ACCEPTED_FORMATS))}")
+
+    # ── Resolution check ─────────────────────────────────────────────────────
     w, h = img.size
-    if w < 200 or h < 200:
-        issues.append("Image resolution too low (< 200px)")
-    if len(file_bytes) < 5000:
-        issues.append("Image file size suspiciously small")
+    if w < MIN_DIMENSION_PX or h < MIN_DIMENSION_PX:
+        issues.append(f"Image resolution too low ({w}x{h}px). Minimum: {MIN_DIMENSION_PX}x{MIN_DIMENSION_PX}px")
 
-    model, transform = _get_model()
-    tensor = transform(img).unsqueeze(0)
-
-    with torch.no_grad():
-        outputs = model(tensor)
-        probs = torch.nn.functional.softmax(outputs[0], dim=0)
-        top5_probs, top5_idxs = torch.topk(probs, 5)
-
-    weights = ResNet18_Weights.DEFAULT
-    labels = weights.meta["categories"]
-
-    top_label = labels[top5_idxs[0].item()].lower()
-    top_conf = float(top5_probs[0])
-
-    top5_labels = [labels[i.item()].lower() for i in top5_idxs]
-    is_property = any(
-        any(kw in lbl for kw in PROPERTY_RELATED)
-        for lbl in top5_labels
-    )
+    # ── Determine label and confidence ────────────────────────────────────────
+    # Without a vision model we cannot classify content, so we return a
+    # neutral label with moderate confidence when structural checks pass.
+    is_valid = len(issues) == 0
+    label    = "image" if is_valid else "invalid"
+    # Confidence reflects structural quality only (not semantic content)
+    confidence = round(min(w, h) / 1000, 3) if is_valid else 0.0
+    confidence = min(confidence, 0.90)  # cap at 0.90 — no deep validation
 
     return {
-        "is_valid": len(issues) == 0,
-        "label": top_label,
-        "confidence": round(top_conf, 3),
-        "is_property_image": is_property,
+        "is_valid": is_valid,
+        "label": label,
+        "confidence": confidence,
+        "is_property_image": is_valid,  # assumed valid if structural checks pass
         "issues": issues,
     }

@@ -1,44 +1,35 @@
 """
-Semantic property recommendation using sentence-transformers.
-Falls back to feature-based cosine similarity if the library is unavailable.
+Property recommendation engine — lightweight feature-based scoring.
+
+sentence-transformers / torch have been removed (too heavy for Render 512 MB
+free tier). All recommendations now use _fallback_similarity(), which was
+already implemented and tested as the library-unavailable fallback.
+
+The public interface (recommend()) is unchanged — callers receive the same
+response schema as before.
 """
 from typing import List, Dict, Any
 
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    _ST_AVAILABLE = True
-except ImportError:
-    _ST_AVAILABLE = False
-    import numpy as np
-
-_embed_model = None
+import numpy as np
 
 
-def _get_embed_model():
-    global _embed_model
-    if _embed_model is None and _ST_AVAILABLE:
-        print("[AI] Loading sentence-transformer model...")
-        _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _embed_model
-
-
-def _to_text(p: Dict[str, Any]) -> str:
-    parts = [
-        str(p.get("title", "")),
-        str(p.get("description", "")),
-        str(p.get("type", "")),
-        str(p.get("city", "")),
-        str(p.get("area", "")),
-        " ".join(p.get("features", []) or []),
-    ]
-    return " ".join(x for x in parts if x)
-
+# ---------------------------------------------------------------------------
+# Feature-based similarity (primary and only path)
+# ---------------------------------------------------------------------------
 
 def _fallback_similarity(target: Dict, candidates: List[Dict]) -> List[float]:
-    """Feature-overlap similarity when sentence-transformers not available."""
+    """
+    Weighted feature-overlap similarity.
+
+    Scoring breakdown (sums to 1.0):
+      type match   → 0.25
+      city match   → 0.25
+      state match  → 0.10
+      price delta  → 0.40  (1 − relative_diff, capped at 0)
+    """
     scores = []
-    t_price = float(target.get("price", 1))
+    t_price = float(target.get("price", 1) or 1)
+
     for c in candidates:
         s = 0.0
         if c.get("type") == target.get("type"):
@@ -47,32 +38,57 @@ def _fallback_similarity(target: Dict, candidates: List[Dict]) -> List[float]:
             s += 0.25
         if c.get("state") == target.get("state"):
             s += 0.10
-        price_sim = max(0.0, 1 - abs(float(c.get("price", 0)) - t_price) / (t_price + 1))
+        price_sim = max(0.0, 1 - abs(float(c.get("price", 0) or 0) - t_price) / (t_price + 1))
         s += price_sim * 0.40
         scores.append(s)
+
     return scores
 
+
+def _to_feature_dict(p: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalise a property dict to the keys _fallback_similarity expects."""
+    return {
+        "type":  str(p.get("type", "") or ""),
+        "city":  str(p.get("city", "") or ""),
+        "state": str(p.get("state", "") or ""),
+        "price": float(p.get("price", 0) or 0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def recommend(
     target: Dict[str, Any],
     candidates: List[Dict[str, Any]],
     limit: int = 6,
 ) -> Dict[str, Any]:
+    """
+    Return the top-`limit` most similar properties from `candidates`.
+
+    Args:
+        target:     Dict representation of the reference property.
+        candidates: List of candidate property dicts.
+        limit:      Maximum number of results to return.
+
+    Returns:
+        {
+            "properties": [...],          # ranked candidate dicts
+            "similarity_scores": [...]    # float scores in [0, 1]
+        }
+    """
     if not candidates:
         return {"properties": [], "similarity_scores": []}
 
-    model = _get_embed_model()
-
-    if model and _ST_AVAILABLE:
-        texts = [_to_text(target)] + [_to_text(c) for c in candidates]
-        embeddings = model.encode(texts, normalize_embeddings=True)
-        target_emb = embeddings[0]
-        scores = np.dot(embeddings[1:], target_emb).tolist()
-    else:
-        scores = _fallback_similarity(target, candidates)
+    scores = _fallback_similarity(
+        _to_feature_dict(target),
+        [_to_feature_dict(c) for c in candidates],
+    )
 
     ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)[:limit]
+
     return {
-        "properties": [p for p, _ in ranked],
+        "properties":        [p for p, _ in ranked],
         "similarity_scores": [round(float(s), 4) for _, s in ranked],
     }
