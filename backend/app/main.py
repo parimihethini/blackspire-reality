@@ -12,6 +12,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
 # Force-load backend/.env regardless of cwd
 def _force_load_dotenv(dotenv_path: Path) -> None:
@@ -35,7 +36,7 @@ _force_load_dotenv(ENV_PATH)
 print("[Env] Loaded ENV from:", ENV_PATH)
 
 from app.core.config import settings
-from app.db.session import engine
+from app.db.session import engine, check_db_connection
 from app.db.base import Base
 
 # Track if database has been initialized
@@ -88,53 +89,62 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         print(f"[HTTP {exc.status_code}] {request.method} {request.url.path}: {exc.detail}")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(_: Request, exc: Exception):
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    print(f"[DB ERROR] {request.method} {request.url.path}: {exc}")
     return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc) or "Internal Server Error"},
+        status_code=503,
+        content={"detail": "Database temporarily unavailable. Please try again later."},
     )
 
-# Configure CORS origins
-raw_origins = os.getenv(
-    "FRONTEND_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,https://blackspire-reality.vercel.app",
-)
-allow_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    print(f"[ERROR] {request.method} {request.url.path}: {exc}")
+    detail = str(exc) if settings.DEBUG else "Internal Server Error"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": detail},
+    )
 
-for o in settings.ALLOWED_ORIGINS:
-    if o not in allow_origins:
-        allow_origins.append(o)
+# CORS: explicit origins plus Vercel preview/production deployments.
+allow_origins = list(dict.fromkeys(settings.ALLOWED_ORIGINS))
 
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
 
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str, request: Request):
-    return JSONResponse(
-        content={},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "3600",
-        },
-    )
+@app.get("/", tags=["Health"])
+async def root():
+    return {
+        "service": "Blackspire PropTech API",
+        "version": "1.0.0",
+        "health": "/health",
+        "docs": "/docs",
+    }
 
 @app.get("/health", tags=["Health"])
 async def health():
-    # Lazy-initialize database on first request
-    await _initialize_database_if_needed()
-    return {"status": "healthy", "service": "Blackspire PropTech API", "version": "1.0.0"}
+    db_ok = check_db_connection()
+    if db_ok:
+        await _initialize_database_if_needed()
+    status_code = 200 if db_ok else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if db_ok else "degraded",
+            "database": "connected" if db_ok else "unavailable",
+            "service": "Blackspire PropTech API",
+            "version": "1.0.0",
+        },
+    )
 
 # ── Lazy load all routers on first request ──
 _routers_loaded = False
@@ -183,10 +193,13 @@ async def _load_routers_once():
         print(f"[Routers] ERROR loading routers: {e}")
         raise
 
+# Paths that do not need the full API router tree loaded.
+_SKIP_ROUTER_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc", "/favicon.ico"}
+
 @app.middleware("http")
 async def load_routers_middleware(request, call_next):
-    """Load routers on first non-health request."""
-    if request.url.path != "/health":
+    """Load routers on first API request."""
+    if request.url.path not in _SKIP_ROUTER_PATHS:
         await _load_routers_once()
     response = await call_next(request)
     return response

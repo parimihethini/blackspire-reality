@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -39,3 +39,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def check_db_connection() -> bool:
+    """Return True when the database accepts a simple query."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        print(f"[DB] Connection check failed: {e}")
+        return False

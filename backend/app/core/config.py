@@ -51,6 +51,7 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "https://blackspire-reality.vercel.app",
     ]
 
     # Rate limiting (requests/minute)
@@ -58,34 +59,33 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
-        if self.DATABASE_URL:
-            if self.DATABASE_URL.startswith("postgres://"):
-                self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-            
-            # Intercept and route Supabase connections to use the IPv4-compatible pooler
-            # and guarantee that the required scoped username is applied.
-            is_supabase = "supabase.co" in self.DATABASE_URL or "supabase.com" in self.DATABASE_URL
-            if is_supabase:
-                from urllib.parse import urlparse, urlunparse
-                parsed = urlparse(self.DATABASE_URL)
-                username = parsed.username or "postgres"
-                
-                # Enforce scoped username format
-                if not username.endswith(".hfhovkfvrgcunsadfvmm"):
-                    username = f"{username}.hfhovkfvrgcunsadfvmm"
-                
-                # Check for direct connection host and route it to the IPv4 pooler
-                host = parsed.hostname
-                if host == "db.hfhovkfvrgcunsadfvmm.supabase.co":
-                    host = "aws-1-ap-northeast-1.pooler.supabase.com"
-                
-                password_str = f":{parsed.password}" if parsed.password is not None else ""
-                port_str = f":{parsed.port}" if parsed.port is not None else ""
-                if not port_str and host == "aws-1-ap-northeast-1.pooler.supabase.com":
-                    port_str = ":5432"  # default to Session mode
-                
-                new_netloc = f"{username}{password_str}@{host}{port_str}"
-                self.DATABASE_URL = urlunparse(parsed._replace(netloc=new_netloc))
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace(
+                "postgres://", "postgresql://", 1
+            )
+
+        # Merge FRONTEND_ORIGINS (comma-separated) into ALLOWED_ORIGINS for production CORS.
+        raw_frontend = os.getenv("FRONTEND_ORIGINS", "")
+        if raw_frontend:
+            for origin in raw_frontend.split(","):
+                origin = origin.strip()
+                if origin and origin not in self.ALLOWED_ORIGINS:
+                    self.ALLOWED_ORIGINS.append(origin)
+
+        self._validate_database_url()
+
+    def _validate_database_url(self) -> None:
+        """Log clear warnings for common Supabase misconfiguration."""
+        from urllib.parse import urlparse
+
+        parsed = urlparse(self.DATABASE_URL)
+        username = parsed.username or ""
+        if username.count(".") >= 2 and username.startswith("postgres."):
+            print(
+                "[DB] WARNING: DATABASE_URL username looks malformed "
+                f"({username}). Use the exact connection string from Supabase "
+                "(Settings → Database → Connection string). Do not append extra project refs."
+            )
 
     class Config:
         _backend_root = Path(__file__).resolve().parents[2]
