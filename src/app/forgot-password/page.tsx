@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, ArrowRight, ShieldCheck, ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +11,6 @@ export default function ForgotPassword() {
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +25,10 @@ export default function ForgotPassword() {
                 throw new Error(await readApiError(response, "Failed to send reset email."));
             }
 
-            router.push(`/reset-password-otp?email=${encodeURIComponent(email)}`);
+            setMessage(
+                "If an account exists for this email, we've sent a reset link and OTP. " +
+                "Check your inbox and spam folder. No email? Register first or try again in a few minutes."
+            );
         } catch (err: any) {
             setError(err.message || "Failed to process request.");
         } finally {
@@ -100,13 +101,27 @@ export default function ForgotPassword() {
                             </motion.button>
                         </form>
                     ) : (
-                        <Link 
-                            href="/login"
-                            className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 hover:bg-white/10 transition-colors"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                            Back to Login
-                        </Link>
+                        <div className="w-full flex flex-col gap-4">
+                            <Link
+                                href={`/reset-password-otp?email=${encodeURIComponent(email)}`}
+                                className="w-full bg-gradient-to-r from-[#4DA3FF] to-[#7CC4FF] text-[#0A0F1F] font-extrabold py-4 rounded-xl flex justify-center items-center gap-2"
+                            >
+                                Enter OTP <ArrowRight className="w-5 h-5" />
+                            </Link>
+                            <Link
+                                href="/register"
+                                className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 hover:bg-white/10 transition-colors"
+                            >
+                                Create an account
+                            </Link>
+                            <Link
+                                href="/login"
+                                className="w-full text-[#A0AEC0] hover:text-[#7CC4FF] font-bold py-2 flex justify-center items-center gap-2 transition-colors"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                                Back to Login
+                            </Link>
+                        </div>
                     )}
 
                     {!message && (

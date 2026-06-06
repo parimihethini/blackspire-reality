@@ -27,8 +27,10 @@ export default function SellerForgotPassword() {
                 throw new Error(await readApiError(response, "Failed to send reset email."));
             }
 
-            setMessage("OTP and reset link sent successfully!");
-            router.push(`/seller/reset-password-otp?email=${encodeURIComponent(email)}`);
+            setMessage(
+                "If a seller account exists for this email, we've sent a reset link and OTP. " +
+                "Check inbox and spam. No email? Register as a seller first."
+            );
         } catch (err: any) {
             setError(err.message || "Failed to process request.");
         } finally {

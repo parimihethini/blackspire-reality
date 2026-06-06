@@ -124,7 +124,7 @@ function SellerResetPasswordOTPForm() {
 
             <h1 className="text-3xl font-extrabold text-white mb-2 text-center tracking-tight">Reset Portal Password</h1>
             <p className="text-[#A0AEC0] text-[15px] text-center mb-8 font-medium">
-                We've sent a 6-digit OTP to <strong>{email}</strong>. Use it below to reset your password.
+                If a seller account exists for <strong>{email}</strong>, check your inbox and spam for the OTP from blackspirereality@gmail.com.
             </p>
 
             {error && (

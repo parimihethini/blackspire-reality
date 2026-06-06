@@ -225,23 +225,26 @@ async def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)
 async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
     print("RESET EMAIL:", data.email)
     user = db.query(User).filter(User.email == data.email).first()
-    if user:
-        token = generate_token()
-        otp = generate_otp()
-        user.reset_token = token
-        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
-        user.reset_otp_hash = hash_password(otp)
-        user.reset_otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
-        user.reset_otp_attempts = 0
-        db.commit()
-        try:
-            send_reset_email(user.email, user.name, token, otp)
-        except EmailDeliveryError as e:
-            print(f"[Email] reset email failed: {e}")
-            raise HTTPException(
-                status_code=503,
-                detail="Could not send reset email. Please try again in a few minutes.",
-            )
+    if not user:
+        print(f"[Email] No account for {data.email} — reset email not sent (register first)")
+        return {"message": "If the email exists, a reset link and OTP have been sent."}
+
+    token = generate_token()
+    otp = generate_otp()
+    user.reset_token = token
+    user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+    user.reset_otp_hash = hash_password(otp)
+    user.reset_otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
+    user.reset_otp_attempts = 0
+    db.commit()
+    try:
+        send_reset_email(user.email, user.name, token, otp)
+    except EmailDeliveryError as e:
+        print(f"[Email] reset email failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not send reset email. Please try again in a few minutes.",
+        )
     return {"message": "If the email exists, a reset link and OTP have been sent."}
 
 

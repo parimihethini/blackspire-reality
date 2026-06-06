@@ -154,8 +154,54 @@ def _format_gmail_http_error(exc: HttpError) -> str:
     return f"Gmail send failed ({exc.resp.status}): {exc}"
 
 
+def get_email_status() -> dict:
+    """Return email service status for health checks (no email sent)."""
+    try:
+        creds = _load_credentials()
+        return {
+            "configured": True,
+            "from": settings.EMAIL_FROM,
+            "transport": "smtp" if os.getenv("GMAIL_APP_PASSWORD") else "gmail_api",
+            "scopes": list(creds.scopes or []),
+        }
+    except EmailDeliveryError as e:
+        return {"configured": False, "from": settings.EMAIL_FROM, "error": str(e)}
+    except Exception as e:
+        return {"configured": False, "from": settings.EMAIL_FROM, "error": str(e)}
+
+
+def _send_via_smtp(to_email: str, subject: str, body_html: str) -> None:
+    import smtplib
+    from email.mime.text import MIMEText as SmtpMIMEText
+
+    app_password = os.getenv("GMAIL_APP_PASSWORD")
+    if not app_password:
+        raise EmailDeliveryError("GMAIL_APP_PASSWORD not configured for SMTP.")
+
+    msg = SmtpMIMEText(body_html, "html")
+    msg["Subject"] = subject
+    msg["From"] = settings.EMAIL_FROM
+    msg["To"] = to_email
+
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(settings.EMAIL_FROM, app_password)
+        server.send_message(msg)
+
+
 def send_email_gmail(to_email: str, subject: str, body_html: str) -> None:
-    """Send an HTML email via Gmail API. Raises EmailDeliveryError on failure."""
+    """Send an HTML email. Prefers SMTP when GMAIL_APP_PASSWORD is set."""
+    smtp_password = os.getenv("GMAIL_APP_PASSWORD")
+    if smtp_password:
+        try:
+            _send_via_smtp(to_email, subject, body_html)
+            print(f"[Email] Sent via SMTP '{subject}' to {to_email}")
+            return
+        except Exception as e:
+            print(f"[Email] SMTP failed, falling back to Gmail API: {e}")
+
     try:
         service = _get_gmail_service()
         message = MIMEText(body_html, "html")
@@ -165,7 +211,7 @@ def send_email_gmail(to_email: str, subject: str, body_html: str) -> None:
 
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         service.users().messages().send(userId="me", body={"raw": raw}).execute()
-        print(f"[Email] Sent '{subject}' to {to_email}")
+        print(f"[Email] Sent via Gmail API '{subject}' to {to_email}")
     except EmailDeliveryError:
         raise
     except HttpError as e:

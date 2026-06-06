@@ -63,11 +63,19 @@ async def _initialize_database_if_needed():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database schema before accepting traffic."""
+    """Initialize database schema and email service before accepting traffic."""
     await _initialize_database_if_needed()
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _verify_email_on_startup)
     print("[Startup] Application startup complete [OK]")
     yield
     print("[Shutdown] Application shutdown complete [OK]")
+
+
+def _verify_email_on_startup() -> None:
+    from app.services.email_service import verify_email_service
+
+    verify_email_service()
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])
 
@@ -133,15 +141,19 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health():
+    from app.services.email_service import get_email_status
+
     db_ok = check_db_connection()
     if db_ok:
         await _initialize_database_if_needed()
+    email_status = get_email_status()
     status_code = 200 if db_ok else 503
     return JSONResponse(
         status_code=status_code,
         content={
             "status": "healthy" if db_ok else "degraded",
             "database": "connected" if db_ok else "unavailable",
+            "email": email_status,
             "service": "Blackspire PropTech API",
             "version": "1.0.0",
         },

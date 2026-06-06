@@ -124,7 +124,7 @@ function ResetPasswordOTPForm() {
 
             <h1 className="text-3xl font-extrabold text-white mb-2 text-center tracking-tight">Enter OTP</h1>
             <p className="text-[#A0AEC0] text-[15px] text-center mb-8 font-medium">
-                We've sent a 6-digit OTP to {email}. Or you can click the link in your email.
+                If an account exists for <strong className="text-white">{email}</strong>, check your inbox and spam for the OTP or reset link from blackspirereality@gmail.com.
             </p>
 
             {error && (
