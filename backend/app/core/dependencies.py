@@ -80,9 +80,22 @@ def require_role(*roles: str):
     return checker
 
 
+# ── Legacy role aliases (backward-compatible) ─────────────────────────────────
 get_current_customer = require_role("customer")
 get_current_seller = require_role("seller")
-get_current_admin = require_role("admin")
-# Explicit alias for admin routers / docs
-get_current_admin_user = get_current_admin
-get_any_user = require_role("customer", "seller", "admin")
+
+# ── Admin guards: super_admin always passes admin checks ──────────────────────
+get_current_admin = require_role("admin", "super_admin")
+get_current_admin_user = get_current_admin           # explicit alias used in admin.py
+get_current_super_admin = require_role("super_admin")
+
+# ── Phase 1 domain role guards ────────────────────────────────────────────────
+get_current_investor = require_role("investor", "customer")         # customer = legacy investor
+get_current_founder = require_role("startup_founder", "seller")     # seller = legacy founder
+get_current_team_member = require_role("team_member", "admin", "super_admin")
+
+# ── Catch-all: any authenticated user (all roles) ─────────────────────────────
+get_any_user = require_role(
+    "customer", "seller", "admin",
+    "super_admin", "team_member", "startup_founder", "investor",
+)

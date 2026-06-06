@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -154,6 +155,7 @@ async def admin_stats(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin_user),
 ):
+    # ── Legacy / property counts ─────────────────────────────────────────────────
     total_users = db.query(User).count()
     customers = db.query(User).filter(User.role == UserRole.customer).count()
     sellers = db.query(User).filter(User.role == UserRole.seller).count()
@@ -164,7 +166,24 @@ async def admin_stats(
         (Property.is_published == False) | (Property.is_verified == False)
     ).count()
 
+    # ── Phase 1 domain role counts ────────────────────────────────────────────────
+    super_admins = db.query(User).filter(User.role == UserRole.super_admin).count()
+    team_members = db.query(User).filter(User.role == UserRole.team_member).count()
+    investors = db.query(User).filter(User.role == UserRole.investor).count()
+    startup_founders = db.query(User).filter(User.role == UserRole.startup_founder).count()
+
+    # Total investors = new 'investor' role + legacy 'customer' role
+    total_investors = investors + customers
+
+    # New investors registered in the last 7 days (both investor + customer roles)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    new_investors_this_week = db.query(User).filter(
+        User.role.in_([UserRole.investor, UserRole.customer]),
+        User.created_at >= week_ago,
+    ).count()
+
     return AdminStatsResponse(
+        # Legacy fields
         total_users=total_users,
         customers=customers,
         sellers=sellers,
@@ -172,4 +191,13 @@ async def admin_stats(
         total_properties=total_properties,
         published_properties=published_properties,
         pending_listings=pending_listings,
+        # Phase 1 fields
+        super_admins=super_admins,
+        team_members=team_members,
+        investors=investors,
+        startup_founders=startup_founders,
+        total_investors=total_investors,
+        total_startups=0,             # populated after startup_profiles table (Step 4)
+        new_investors_this_week=new_investors_this_week,
+        pending_startup_requests=0,   # populated after startup application model (Step 4)
     )

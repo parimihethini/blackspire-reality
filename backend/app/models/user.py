@@ -7,9 +7,18 @@ from app.db.base import Base
 
 
 class UserRole(str, enum.Enum):
+    # ── Legacy roles (kept for backward compatibility with existing DB rows) ──
     customer = "customer"
     seller = "seller"
+
+    # ── Core admin roles ──
     admin = "admin"
+    super_admin = "super_admin"   # Full platform control, cannot be self-deleted
+    team_member = "team_member"   # Internal Blackspire staff (read + limited write)
+
+    # ── Phase 1 domain roles ──
+    startup_founder = "startup_founder"  # Can create/manage startup profiles
+    investor = "investor"                # Can browse startups, view matches
 
 
 class User(Base):

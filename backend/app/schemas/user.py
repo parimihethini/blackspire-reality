@@ -56,11 +56,22 @@ class LoginRequest(BaseModel):
         if v is None:
             return None
         role = v.strip().lower()
+        # Legacy alias: 'agent' maps to 'seller'
         if role == "agent":
             return "seller"
-        if role in {"customer", "seller", "admin"}:
+        # Legacy alias: 'founder' maps to 'startup_founder'
+        if role == "founder":
+            return "startup_founder"
+        valid_roles = {
+            "customer", "seller", "admin",
+            "super_admin", "team_member", "startup_founder", "investor",
+        }
+        if role in valid_roles:
             return role
-        raise ValueError("role must be one of: customer, seller, admin, agent")
+        raise ValueError(
+            "role must be one of: customer, seller, admin, "
+            "super_admin, team_member, startup_founder, investor"
+        )
 
 
 class TokenResponse(BaseModel):
@@ -113,6 +124,7 @@ class AdminUserRoleUpdate(BaseModel):
 
 
 class AdminStatsResponse(BaseModel):
+    # ── Legacy counts ─────────────────────────────────────────────────────────
     total_users: int
     customers: int
     sellers: int
@@ -120,3 +132,13 @@ class AdminStatsResponse(BaseModel):
     total_properties: int
     published_properties: int
     pending_listings: int
+
+    # ── Phase 1 domain counts (populated once investor/startup models exist) ──
+    super_admins: int = 0
+    team_members: int = 0
+    investors: int = 0
+    startup_founders: int = 0
+    total_investors: int = 0       # alias: investors count
+    total_startups: int = 0        # populated after startup_profiles table
+    new_investors_this_week: int = 0
+    pending_startup_requests: int = 0
