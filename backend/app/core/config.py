@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_ID: str = ""
     LINKEDIN_CLIENT_SECRET: str = ""
 
+    # First-admin bootstrap (optional — only when no admin exists yet)
+    BOOTSTRAP_ADMIN_EMAIL: str = ""
+    BOOTSTRAP_ADMIN_PASSWORD: str = ""
+    BOOTSTRAP_ADMIN_NAME: str = "Platform Administrator"
+    BOOTSTRAP_ADMIN_ROLE: str = "admin"  # admin | super_admin
+
     # CORS origins
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",

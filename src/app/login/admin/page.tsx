@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, getPostLoginPath } from "@/lib/auth";
+import { adminLogin, getPostLoginPath } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Shield } from "lucide-react";
@@ -28,10 +28,9 @@ export default function AdminLogin() {
         setIsLoading(true);
 
         try {
-            const data = await login({
+            const data = await adminLogin({
                 email,
                 password,
-                role: "admin",
             });
 
             router.push(getPostLoginPath(data.role ?? data.user?.role));

@@ -52,9 +52,11 @@ def ensure_schema() -> None:
 
     from app.db.session import SessionLocal
     from app.db.seed_rbac import seed_rbac
+    from app.db.bootstrap_admin import bootstrap_admin_if_needed
 
     db = SessionLocal()
     try:
         seed_rbac(db)
+        bootstrap_admin_if_needed(db)
     finally:
         db.close()
