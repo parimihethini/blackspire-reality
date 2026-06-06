@@ -1,1 +1,1 @@
-web: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+web: python -c "from app.db.init_db import ensure_schema; ensure_schema()" && uvicorn app.main:app --host 0.0.0.0 --port $PORT

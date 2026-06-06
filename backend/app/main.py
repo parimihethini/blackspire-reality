@@ -36,26 +36,26 @@ _force_load_dotenv(ENV_PATH)
 print("[Env] Loaded ENV from:", ENV_PATH)
 
 from app.core.config import settings
-from app.db.session import engine, check_db_connection
-from app.db.base import Base
+from app.db.session import check_db_connection
+from app.db.init_db import ensure_schema
 
 # Track if database has been initialized
 _db_initialized = False
 
 async def _initialize_database_if_needed():
-    """Lazy database initialization on first request (non-blocking during startup)."""
+    """Ensure tables exist before handling DB-backed requests."""
     global _db_initialized
     if _db_initialized:
         return
-    
+
     try:
         loop = asyncio.get_event_loop()
         await asyncio.wait_for(
-            loop.run_in_executor(None, Base.metadata.create_all, engine),
-            timeout=15.0
+            loop.run_in_executor(None, ensure_schema),
+            timeout=60.0,
         )
         _db_initialized = True
-        print("[DB] Database tables initialized on first request [OK]")
+        print("[DB] Database schema ready [OK]")
     except asyncio.TimeoutError:
         print("[DB] Database initialization timed out")
     except Exception as e:
@@ -63,7 +63,8 @@ async def _initialize_database_if_needed():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Minimal lifespan - just startup and shutdown."""
+    """Initialize database schema before accepting traffic."""
+    await _initialize_database_if_needed()
     print("[Startup] Application startup complete [OK]")
     yield
     print("[Shutdown] Application shutdown complete [OK]")
@@ -198,8 +199,9 @@ _SKIP_ROUTER_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc", "/favi
 
 @app.middleware("http")
 async def load_routers_middleware(request, call_next):
-    """Load routers on first API request."""
+    """Ensure schema + load routers before API requests."""
     if request.url.path not in _SKIP_ROUTER_PATHS:
+        await _initialize_database_if_needed()
         await _load_routers_once()
     response = await call_next(request)
     return response

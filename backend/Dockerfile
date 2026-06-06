@@ -21,4 +21,4 @@ RUN python -c "from app.ai.price_predictor import get_model; get_model()" 2>/dev
 RUN python -c "from app.ai.fraud_detection import _get; _get()" 2>/dev/null || true
 
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+CMD ["sh", "-c", "python -c \"from app.db.init_db import ensure_schema; ensure_schema()\" && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
