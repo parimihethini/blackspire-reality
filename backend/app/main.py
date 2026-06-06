@@ -175,6 +175,9 @@ async def _load_routers_once():
         from app.models import review as _m_review       # noqa
         from app.models import favorite as _m_favorite   # noqa
         
+        from app.services.email_service import verify_email_service
+        verify_email_service()
+
         app.include_router(auth.router,                     prefix="/auth",            tags=["Authentication"])
         app.include_router(users.router,                    prefix="/users",           tags=["Users"])
         app.include_router(properties.router,               prefix="/properties",      tags=["Properties"])

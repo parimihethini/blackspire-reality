@@ -21,7 +21,7 @@ from app.schemas.user import (
     PasswordResetRequest, PasswordResetConfirm, RefreshTokenRequest,
     ResetOTPVerifyRequest
 )
-from app.services.email_service import send_otp_email, send_reset_email
+from app.services.email_service import send_otp_email, send_reset_email, EmailDeliveryError
 
 router = APIRouter()
 
@@ -93,9 +93,12 @@ async def register(data: UserCreate, db: Session = Depends(get_db)):
 
     try:
         send_otp_email(user.email, otp)
-    except Exception as e:
-        print("EMAIL ERROR:", str(e))
-        # Do not crash the server if email fails. OTP is stored in DB.
+    except EmailDeliveryError as e:
+        print(f"[Email] register OTP failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not send verification email. Please try again in a few minutes.",
+        )
 
     return {
         "message": "User registered. OTP sent to email.",
@@ -143,9 +146,12 @@ async def resend_otp(data: PasswordResetRequest, db: Session = Depends(get_db)):
     db.commit()
     try:
         send_otp_email(user.email, otp)
-    except Exception as e:
-        print("EMAIL ERROR:", str(e))
-        # Do not crash the server if email fails. OTP is stored in DB.
+    except EmailDeliveryError as e:
+        print(f"[Email] resend OTP failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not send OTP email. Please try again in a few minutes.",
+        )
     return {"message": "OTP resent to your email"}
 
 
@@ -230,9 +236,12 @@ async def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_
         db.commit()
         try:
             send_reset_email(user.email, user.name, token, otp)
-        except Exception as e:
-            print("EMAIL ERROR:", str(e))
-            # Do not crash the server if email fails.
+        except EmailDeliveryError as e:
+            print(f"[Email] reset email failed: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail="Could not send reset email. Please try again in a few minutes.",
+            )
     return {"message": "If the email exists, a reset link and OTP have been sent."}
 
 

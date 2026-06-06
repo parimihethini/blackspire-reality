@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, ArrowRight, ShieldCheck, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { apiPost } from "@/lib/httpClient";
+import { apiPost, readApiError } from "@/lib/httpClient";
 
 export default function SellerForgotPassword() {
     const [email, setEmail] = useState("");
@@ -24,7 +24,7 @@ export default function SellerForgotPassword() {
             const response = await apiPost('/auth/forgot-password', { email });
 
             if (!response.ok) {
-                throw new Error("Failed to send reset link.");
+                throw new Error(await readApiError(response, "Failed to send reset email."));
             }
 
             setMessage("OTP and reset link sent successfully!");

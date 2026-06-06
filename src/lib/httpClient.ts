@@ -41,10 +41,6 @@ export const apiGet = async (path: string, options: RequestInit = {}) => {
     });
 };
 
-/**
- * Fetch with JSON defaults and Bearer token from localStorage `token`.
- * Matches backend expectations; only sends Authorization when a token exists.
- */
 export async function authFetch(input: string | URL, options: RequestInit = {}) {
     if (typeof window === "undefined") {
         return fetch(typeof input === "string" ? buildApiUrl(input) : input, options);
@@ -99,4 +95,21 @@ export async function authFetch(input: string | URL, options: RequestInit = {}) 
         console.error("[authFetch] Network request failed", { input: resolvedInput, error });
         throw new Error("Backend connection failed. Please try again later.");
     }
+}
+
+/** Read FastAPI `{ detail: string | string[] }` from a failed response. */
+export async function readApiError(response: Response, fallback = "Request failed."): Promise<string> {
+    try {
+        const data = await response.json();
+        const detail = data?.detail;
+        if (typeof detail === "string" && detail.trim()) return detail;
+        if (Array.isArray(detail) && detail.length > 0) {
+            return detail
+                .map((item) => (typeof item?.msg === "string" ? item.msg : String(item)))
+                .join(", ");
+        }
+    } catch {
+        // ignore JSON parse errors
+    }
+    return fallback;
 }
