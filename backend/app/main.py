@@ -153,12 +153,16 @@ async def _load_routers_once():
             document_verification
         )
         
-        # Import all models so SQLAlchemy maps them correctly
-        import app.models.user        # noqa
-        import app.models.property    # noqa
-        import app.models.investment  # noqa
-        import app.models.review      # noqa
-        import app.models.favorite    # noqa
+        # Import all models so SQLAlchemy maps them correctly.
+        # IMPORTANT: must use 'from app.models import X' NOT 'import app.models.X'.
+        # The dotted form 'import app.models.X' binds the bare name 'app' in this
+        # function's local scope, shadowing the module-level FastAPI instance and
+        # causing: AttributeError: module 'app' has no attribute 'include_router'
+        from app.models import user as _m_user           # noqa
+        from app.models import property as _m_property   # noqa
+        from app.models import investment as _m_invest   # noqa
+        from app.models import review as _m_review       # noqa
+        from app.models import favorite as _m_favorite   # noqa
         
         app.include_router(auth.router,                     prefix="/auth",            tags=["Authentication"])
         app.include_router(users.router,                    prefix="/users",           tags=["Users"])
