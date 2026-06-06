@@ -58,8 +58,22 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
-        if self.DATABASE_URL and self.DATABASE_URL.startswith("postgres://"):
-            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        if self.DATABASE_URL:
+            if self.DATABASE_URL.startswith("postgres://"):
+                self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            
+            # Intercept and route Supabase direct connection strings to the IPv4-compatible pooler
+            # to avoid IPv6 "Network is unreachable" errors on platforms like Render free-tier.
+            if "db.hfhovkfvrgcunsadfvmm.supabase.co" in self.DATABASE_URL:
+                from urllib.parse import urlparse, urlunparse
+                parsed = urlparse(self.DATABASE_URL)
+                username = parsed.username or "postgres"
+                if not username.endswith(".hfhovkfvrgcunsadfvmm"):
+                    username = f"{username}.hfhovkfvrgcunsadfvmm"
+                password_str = f":{parsed.password}" if parsed.password is not None else ""
+                port_str = f":{parsed.port}" if parsed.port is not None else ":5432"
+                new_netloc = f"{username}{password_str}@aws-1-ap-northeast-1.pooler.supabase.com{port_str}"
+                self.DATABASE_URL = urlunparse(parsed._replace(netloc=new_netloc))
 
     class Config:
         _backend_root = Path(__file__).resolve().parents[2]
