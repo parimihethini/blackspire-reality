@@ -19,6 +19,17 @@ engine = create_engine(
     pool_recycle=1800,  # recycle connections every 30 min to prevent stale connections
 )
 
+# Securely log the database connection details at runtime (password masked)
+from urllib.parse import urlparse
+try:
+    parsed_url = urlparse(settings.DATABASE_URL)
+    password_len = len(parsed_url.password) if parsed_url.password else 0
+    port_str = f":{parsed_url.port}" if parsed_url.port else ""
+    masked_url = f"{parsed_url.scheme}://{parsed_url.username}:{'*' * password_len}@{parsed_url.hostname}{port_str}{parsed_url.path}"
+    print(f"[DB] Initialized engine with URL: {masked_url}")
+except Exception as e:
+    print(f"[DB] Error parsing DATABASE_URL for logging: {e}")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
