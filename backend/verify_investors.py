@@ -3,6 +3,10 @@ Integration test script for Phase 2: Investor Database Module.
 Tests CRUD APIs, RBAC, soft-delete, audit fields, and CSV functionality.
 Run with:
     venv/Scripts/python.exe verify_investors.py
+
+Required env vars (add to backend/.env for local use):
+  TEST_ADMIN_EMAIL=testadmin@example.com
+  TEST_ADMIN_PASSWORD=your_admin_password
 """
 import os
 import sys
@@ -16,6 +20,15 @@ if str(backend_root) not in sys.path:
 
 from dotenv import load_dotenv
 load_dotenv()
+
+_ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL")
+_ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD")
+
+if not _ADMIN_EMAIL or not _ADMIN_PASSWORD:
+    raise SystemExit(
+        "ERROR: TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD must be set in the environment.\n"
+        "Add them to backend/.env — never hardcode credentials in source files."
+    )
 
 # Mock email service to prevent blocking external API/SMTP connection attempts on startup
 import app.services.email_service
@@ -96,7 +109,7 @@ def verify_phase2():
     print("Test users configured.")
 
     # Log in admin & customer to get tokens
-    admin_login = client.post("/auth/login", json={"email": admin_email, "password": "AdminSecurePassword123!", "role": "admin"})
+    admin_login = client.post("/auth/login", json={"email": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD, "role": "admin"})
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}

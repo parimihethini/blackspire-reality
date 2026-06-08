@@ -2,6 +2,12 @@
 Programmatic verification script for SUPER_ADMIN role features and RBAC rules.
 Run with:
     venv/Scripts/python.exe verify_super_admin.py
+
+Required env vars (add to backend/.env for local use):
+  TEST_SUPER_ADMIN_EMAIL=superadmin@example.com
+  TEST_SUPER_ADMIN_PASSWORD=your_super_admin_password
+  TEST_ADMIN_EMAIL=testadmin@example.com
+  TEST_ADMIN_PASSWORD=your_admin_password
 """
 import os
 import sys
@@ -14,6 +20,23 @@ if str(backend_root) not in sys.path:
 
 from dotenv import load_dotenv
 load_dotenv()
+
+_SUPER_ADMIN_EMAIL = os.environ.get("TEST_SUPER_ADMIN_EMAIL")
+_SUPER_ADMIN_PASSWORD = os.environ.get("TEST_SUPER_ADMIN_PASSWORD")
+_ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL")
+_ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD")
+
+_missing = [k for k, v in {
+    "TEST_SUPER_ADMIN_EMAIL": _SUPER_ADMIN_EMAIL,
+    "TEST_SUPER_ADMIN_PASSWORD": _SUPER_ADMIN_PASSWORD,
+    "TEST_ADMIN_EMAIL": _ADMIN_EMAIL,
+    "TEST_ADMIN_PASSWORD": _ADMIN_PASSWORD,
+}.items() if not v]
+if _missing:
+    raise SystemExit(
+        f"ERROR: Missing required environment variables: {', '.join(_missing)}\n"
+        "Add them to backend/.env — never hardcode credentials in source files."
+    )
 
 # Mock email service to prevent blocking external API/SMTP connection attempts on startup
 import app.services.email_service
@@ -71,11 +94,11 @@ def verify_all():
     # 1. Verify SUPER_ADMIN login works
     print("\n--- 1. Verification: SUPER_ADMIN login works ---")
     login_payload = {
-        "email": "superadmin@example.com",
-        "password": "SuperSecurePassword123!",
+        "email": _SUPER_ADMIN_EMAIL,
+        "password": _SUPER_ADMIN_PASSWORD,
         "role": "super_admin"
     }
-    
+
     # Check general public login endpoint
     login_resp = client.post("/auth/login", json=login_payload)
     assert login_resp.status_code == 200, f"Public login failed: {login_resp.json()}"
@@ -89,8 +112,8 @@ def verify_all():
 
     # Log in standard admin for comparisons
     admin_login_payload = {
-        "email": "testadmin@example.com",
-        "password": "AdminSecurePassword123!",
+        "email": _ADMIN_EMAIL,
+        "password": _ADMIN_PASSWORD,
         "role": "admin"
     }
     admin_login_resp = client.post("/auth/login", json=admin_login_payload)
@@ -149,7 +172,7 @@ def verify_all():
 
     # 6. Verify RBAC verification results for SUPER_ADMIN
     print("\n--- 6. Verification: RBAC verification results for SUPER_ADMIN ---")
-    super_admin_db_user = db.query(User).filter(User.email == "superadmin@example.com").first()
+    super_admin_db_user = db.query(User).filter(User.email == _SUPER_ADMIN_EMAIL).first()
     assert super_admin_db_user is not None
     
     print("Checking permissions in database:")

@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # PostgreSQL
-    DATABASE_URL: str = "postgresql://postgres:Hethu%40123@127.0.0.1:5432/blackspire"
+    # PostgreSQL — must be set via DATABASE_URL environment variable (no default to avoid secret leaks)
+    DATABASE_URL: str = ""
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
