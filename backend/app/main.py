@@ -173,7 +173,7 @@ async def _load_routers_once():
         from app.api import (
             auth, users, properties, ai, analytics, investments, 
             reviews, websockets, favorites, notifications, admin as admin_router, 
-            document_verification
+            document_verification, investors
         )
         
         # Import all models so SQLAlchemy maps them correctly.
@@ -189,7 +189,7 @@ async def _load_routers_once():
         
         from app.services.email_service import verify_email_service
         verify_email_service()
-
+ 
         app.include_router(auth.router,                     prefix="/auth",            tags=["Authentication"])
         app.include_router(users.router,                    prefix="/users",           tags=["Users"])
         app.include_router(properties.router,               prefix="/properties",      tags=["Properties"])
@@ -202,6 +202,7 @@ async def _load_routers_once():
         app.include_router(notifications.router,            prefix="/notifications",   tags=["Notifications"])
         app.include_router(document_verification.router,    prefix="/verification",    tags=["Document Verification"])
         app.include_router(admin_router.router)
+        app.include_router(investors.router)
         
         print("[Routers] All routers loaded successfully [OK]")
         _routers_loaded = True

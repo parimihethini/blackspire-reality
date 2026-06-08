@@ -59,3 +59,4 @@ class User(Base):
     site_visits = relationship("SiteVisit", back_populates="customer", lazy="select")
     reviews = relationship("Review", back_populates="user", lazy="select")
     notifications = relationship("Notification", back_populates="user", lazy="select")
+    investor_profile = relationship("InvestorProfile", uselist=False, back_populates="user", cascade="all, delete-orphan", foreign_keys="[InvestorProfile.user_id]")

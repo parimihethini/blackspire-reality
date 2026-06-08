@@ -15,6 +15,7 @@ def _import_all_models() -> None:
     import app.models.review     # noqa: F401
     import app.models.favorite   # noqa: F401
     import app.models.rbac       # noqa: F401
+    import app.models.investor   # noqa: F401
 
 
 def _alembic_version_exists() -> bool:

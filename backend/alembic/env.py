@@ -12,6 +12,10 @@ from app.db.base import Base
 import app.models.user       # noqa
 import app.models.property   # noqa
 import app.models.investment # noqa
+import app.models.review     # noqa
+import app.models.favorite   # noqa
+import app.models.rbac       # noqa
+import app.models.investor   # noqa
 
 config = context.config
 db_url = settings.DATABASE_URL.replace("%", "%%") if settings.DATABASE_URL else ""
