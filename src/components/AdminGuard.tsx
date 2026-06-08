@@ -13,8 +13,7 @@ export default function AdminGuard({ children }: Props) {
 
     useEffect(() => {
         const auth = getAuth();
-        const role = (auth?.role || "").toLowerCase();
-        if (!auth?.loggedIn || !["admin", "super_admin"].includes(role)) {
+        if (!auth?.loggedIn || auth.role !== "admin") {
             router.replace("/login/admin");
             setOk(false);
             return;

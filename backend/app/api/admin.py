@@ -10,7 +10,7 @@ from app.models.user import User, UserRole
 from app.models.property import Property, SiteVisit
 from app.models.review import Review
 from app.models.investment import Investment
-from app.core.dependencies import require_permission
+from app.core.dependencies import get_current_admin_user
 from app.core.permissions import sync_user_role_assignment
 from app.schemas.user import UserResponse, AdminUserRoleUpdate, AdminStatsResponse
 from app.schemas.property import PropertyResponse, AdminPropertyApprove
@@ -55,7 +55,7 @@ def _purge_user_graph(db: Session, user: User) -> None:
 @router.get("/users", response_model=List[UserResponse])
 async def admin_list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("users.read")),
+    _: User = Depends(get_current_admin_user),
 ):
     return db.query(User).order_by(User.id.asc()).all()
 
@@ -64,7 +64,7 @@ async def admin_list_users(
 async def admin_delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_permission("users.delete")),
+    admin: User = Depends(get_current_admin_user),
 ):
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own admin account.")
@@ -95,7 +95,7 @@ async def admin_update_user_role(
     user_id: int,
     body: AdminUserRoleUpdate,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_permission("admin.roles")),
+    admin: User = Depends(get_current_admin_user),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -126,7 +126,7 @@ async def admin_update_user_role(
 @router.get("/properties", response_model=List[PropertyResponse])
 async def admin_list_properties(
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("properties.read")),
+    _: User = Depends(get_current_admin_user),
 ):
     return db.query(Property).order_by(Property.id.desc()).all()
 
@@ -135,7 +135,7 @@ async def admin_list_properties(
 async def admin_delete_property(
     property_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("properties.write")),
+    _: User = Depends(get_current_admin_user),
 ):
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
@@ -151,7 +151,7 @@ async def admin_approve_property(
     property_id: int,
     body: AdminPropertyApprove,
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("properties.moderate")),
+    _: User = Depends(get_current_admin_user),
 ):
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
@@ -172,7 +172,7 @@ async def admin_approve_property(
 @router.get("/stats", response_model=AdminStatsResponse)
 async def admin_stats(
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("analytics.read")),
+    _: User = Depends(get_current_admin_user),
 ):
     # ── Legacy / property counts ─────────────────────────────────────────────────
     total_users = db.query(User).count()

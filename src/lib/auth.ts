@@ -258,27 +258,6 @@ export function replaceSessionFromLoginResponse(data: {
     });
 }
 
-export async function adminLogin(credentials: { email: string; password: string }) {
-    const response = await apiPost("/auth/admin/login", credentials);
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error(
-            typeof data?.detail === "string" ? data.detail : "Admin authentication failed",
-        );
-    }
-
-    replaceSessionFromLoginResponse({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        token_type: data.token_type,
-        role: data.role,
-        user: data.user,
-    });
-
-    return data;
-}
-
 export async function login(credentials: { email: string; password: string; role: string }) {
     const response = await apiPost('/auth/login', credentials);
 
