@@ -113,7 +113,8 @@ export function getAuth(): AuthUser | null {
 export function getPostLoginPath(role: unknown): string {
     const r = normalizeRole(role).toLowerCase();
     if (r === "admin" || r === "super_admin" || r === "team_member") return "/admin";
-    if (r === "seller" || r === "startup_founder") return "/seller/dashboard";
+    if (r === "startup_founder") return "/founder/dashboard";
+    if (r === "seller") return "/seller/dashboard";
     if (r === "investor") return "/investor/dashboard";
     return "/";
 }

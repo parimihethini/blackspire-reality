@@ -78,6 +78,7 @@ export default function Navbar() {
     const getNavLinks = () => {
         const baseLinks = [
             { name: 'Home', path: '/' },
+            { name: 'Startups', path: '/startups' },
             { name: 'Plots', path: '/plots' },
             { name: 'Houses', path: '/houses' },
             { name: 'AI Verification', path: '/ai-tools/documents' },
@@ -85,6 +86,14 @@ export default function Navbar() {
 
         if (!auth?.loggedIn) {
             return baseLinks;
+        }
+
+        if (auth.role === 'startup_founder') {
+            return [
+                { name: 'Dashboard', path: '/founder/dashboard' },
+                { name: 'Edit Startup', path: '/founder/startups/edit' },
+                { name: 'Marketplace', path: '/startups' },
+            ];
         }
 
         if (auth.role === 'seller') {
@@ -102,6 +111,7 @@ export default function Navbar() {
             return [
                 ...baseLinks,
                 { name: 'Portfolio', path: '/investor/dashboard' },
+                { name: 'Saved Startups', path: '/startups' },
             ];
         }
 

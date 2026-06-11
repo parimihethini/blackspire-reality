@@ -16,6 +16,7 @@ import app.models.review     # noqa
 import app.models.favorite   # noqa
 import app.models.rbac       # noqa
 import app.models.investor   # noqa
+import app.models.startup    # noqa
 
 config = context.config
 db_url = settings.DATABASE_URL.replace("%", "%%") if settings.DATABASE_URL else ""

@@ -10,6 +10,7 @@ from app.models.user import User, UserRole
 from app.models.property import Property, SiteVisit
 from app.models.review import Review
 from app.models.investment import Investment
+from app.models.startup import StartupListingStatus, StartupProfile
 from app.core.dependencies import get_current_admin_user
 from app.core.permissions import sync_user_role_assignment
 from app.schemas.user import UserResponse, AdminUserRoleUpdate, AdminStatsResponse
@@ -201,6 +202,12 @@ async def admin_stats(
         User.created_at >= week_ago,
     ).count()
 
+    total_startups = db.query(StartupProfile).filter(StartupProfile.is_deleted == False).count()
+    pending_startup_requests = db.query(StartupProfile).filter(
+        StartupProfile.is_deleted == False,
+        StartupProfile.status == StartupListingStatus.pending_review,
+    ).count()
+
     return AdminStatsResponse(
         # Legacy fields
         total_users=total_users,
@@ -216,7 +223,7 @@ async def admin_stats(
         investors=investors,
         startup_founders=startup_founders,
         total_investors=total_investors,
-        total_startups=0,             # populated after startup_profiles table (Step 4)
+        total_startups=total_startups,
         new_investors_this_week=new_investors_this_week,
-        pending_startup_requests=0,   # populated after startup application model (Step 4)
+        pending_startup_requests=pending_startup_requests,
     )

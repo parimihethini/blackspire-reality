@@ -26,6 +26,14 @@ PERMISSION_DEFINITIONS = [
     ("investments.read", "View investments"),
     ("investments.write", "Create investments"),
     ("analytics.read", "View analytics"),
+    ("investors.read", "View investor profiles"),
+    ("investors.write", "Create and update investor profiles"),
+    ("investors.delete", "Soft-delete investor profiles"),
+    ("startups.read", "View startup profiles"),
+    ("startups.write", "Create and update startup profiles"),
+    ("startups.delete", "Soft-delete startup profiles"),
+    ("startups.moderate", "Approve, reject, verify, or suspend startups"),
+    ("startups.interact", "Save, contact, and express interest in startups"),
 ]
 
 ROLE_PERMISSION_MAP = {
@@ -34,15 +42,30 @@ ROLE_PERMISSION_MAP = {
         "users.read", "users.write", "users.delete",
         "properties.read", "properties.write", "properties.moderate",
         "admin.access", "admin.roles", "investments.read", "analytics.read",
+        "investors.read", "investors.write", "investors.delete",
+        "startups.read", "startups.write", "startups.delete", "startups.moderate",
     ],
     "team_member": [
         "users.read", "properties.read", "properties.moderate",
         "admin.access", "analytics.read",
+        "startups.read", "startups.moderate",
     ],
-    "startup_founder": ["properties.read", "properties.write", "investments.read"],
-    "seller": ["properties.read", "properties.write", "investments.read"],
-    "investor": ["properties.read", "investments.read", "investments.write"],
-    "customer": ["properties.read", "investments.read", "investments.write"],
+    "startup_founder": [
+        "properties.read", "properties.write", "investments.read",
+        "startups.read", "startups.write", "startups.delete",
+    ],
+    "seller": [
+        "properties.read", "properties.write", "investments.read",
+        "startups.read", "startups.write", "startups.delete",
+    ],
+    "investor": [
+        "properties.read", "investments.read", "investments.write",
+        "startups.read", "startups.interact",
+    ],
+    "customer": [
+        "properties.read", "investments.read", "investments.write",
+        "startups.read", "startups.interact",
+    ],
 }
 
 

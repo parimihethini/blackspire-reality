@@ -60,3 +60,4 @@ class User(Base):
     reviews = relationship("Review", back_populates="user", lazy="select")
     notifications = relationship("Notification", back_populates="user", lazy="select")
     investor_profile = relationship("InvestorProfile", uselist=False, back_populates="user", cascade="all, delete-orphan", foreign_keys="[InvestorProfile.user_id]")
+    startup_profiles = relationship("StartupProfile", back_populates="founder", lazy="select", foreign_keys="[StartupProfile.founder_id]")

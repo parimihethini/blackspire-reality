@@ -1,11 +1,14 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from typing import List, Optional
 from datetime import datetime
+
+from app.core.constants import INVESTOR_TYPES
+
 
 class InvestorProfileBase(BaseModel):
     company_name: Optional[str] = None
     designation: Optional[str] = None
-    investor_type: Optional[str] = None  # e.g. VC, Angel, PE, Family Office, Corporate, Other
+    investor_type: Optional[str] = None
     linkedin_url: Optional[str] = None
     website_url: Optional[str] = None
     ticket_size_min: Optional[float] = None
@@ -18,16 +21,44 @@ class InvestorProfileBase(BaseModel):
     industries: List[str] = []
     stages: List[str] = []
 
+    @field_validator("investor_type")
+    @classmethod
+    def validate_investor_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if v not in INVESTOR_TYPES:
+            raise ValueError(f"investor_type must be one of: {', '.join(INVESTOR_TYPES)}")
+        return v
+
+    @field_validator("priority_score")
+    @classmethod
+    def validate_priority_score(cls, v: int) -> int:
+        if v < 0 or v > 5:
+            raise ValueError("priority_score must be between 0 and 5")
+        return v
+
+    @model_validator(mode="after")
+    def validate_ticket_range(self):
+        if (
+            self.ticket_size_min is not None
+            and self.ticket_size_max is not None
+            and self.ticket_size_min > self.ticket_size_max
+        ):
+            raise ValueError("ticket_size_min cannot exceed ticket_size_max")
+        return self
+
+
 class InvestorProfileCreate(InvestorProfileBase):
     user_id: Optional[int] = None
-    # User creation fields (if user_id is not specified)
     email: Optional[EmailStr] = None
     name: Optional[str] = None
     phone: Optional[str] = None
     password: Optional[str] = None
 
+
 class InvestorProfileUpdate(InvestorProfileBase):
     pass
+
 
 class UserSummary(BaseModel):
     id: int
@@ -39,6 +70,7 @@ class UserSummary(BaseModel):
     is_active: bool = True
 
     model_config = {"from_attributes": True}
+
 
 class InvestorProfileResponse(InvestorProfileBase):
     id: int

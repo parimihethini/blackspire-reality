@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getAuth, clearAuth } from "@/lib/auth";
 import Link from "next/link";
-import { LayoutDashboard, Users, Home, BarChart3, LogOut, Menu, X, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, Home, BarChart3, LogOut, Menu, X, Briefcase, Rocket } from "lucide-react";
+
+const INVESTOR_ADMIN_ROLES = ["admin", "super_admin"];
 
 const NAV = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
-    { name: "Investors", href: "/admin/investors", icon: Briefcase },
+    { name: "Investors", href: "/admin/investors", icon: Briefcase, roles: INVESTOR_ADMIN_ROLES },
+    { name: "Startups", href: "/admin/startups", icon: Rocket },
     { name: "Properties", href: "/admin/properties", icon: Home },
     { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
 ];
@@ -18,6 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const pathname = usePathname();
     const [isAuthorized, setIsAuthorized] = useState(false);
+    const [userRole, setUserRole] = useState("");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
@@ -27,6 +31,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             router.replace("/login/admin");
             return;
         }
+        if (pathname.startsWith("/admin/investors") && !INVESTOR_ADMIN_ROLES.includes(role)) {
+            router.replace("/admin/dashboard");
+            return;
+        }
+        setUserRole(role);
         setIsAuthorized(true);
     }, [router, pathname]);
 
@@ -47,6 +56,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         pathname === href ||
         (href === "/admin/dashboard" && pathname === "/admin") ||
         (href !== "/admin/dashboard" && pathname.startsWith(href + "/"));
+
+    const visibleNav = NAV.filter(
+        (item) => !item.roles || item.roles.includes(userRole)
+    );
 
     return (
         <div className="min-h-screen bg-[#0A0F1F] text-[#FFFFFF] flex flex-col font-inter relative overflow-hidden">
@@ -85,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     } md:translate-x-0 transition-transform duration-300 z-40 flex flex-col shadow-[10px_0_30px_rgba(0,0,0,0.5)] md:shadow-none`}
                 >
                     <nav className="flex-1 px-4 py-8 flex flex-col gap-2">
-                        {NAV.map((item) => {
+                        {visibleNav.map((item) => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
                             return (

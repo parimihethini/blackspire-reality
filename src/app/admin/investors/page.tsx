@@ -7,7 +7,7 @@ import {
     updateInvestor,
     deleteInvestor,
     importInvestorsCsv,
-    getExportInvestorsUrl,
+    exportInvestorsCsv,
     type InvestorProfileRow,
     type InvestorCreateParams,
 } from "@/lib/investorApi";
@@ -38,9 +38,12 @@ export default function AdminInvestorsPage() {
 
     // Search and filters
     const [q, setQ] = useState("");
+    const [debouncedQ, setDebouncedQ] = useState("");
     const [investorType, setInvestorType] = useState("");
     const [industry, setIndustry] = useState("");
     const [stage, setStage] = useState("");
+    const [country, setCountry] = useState("");
+    const [city, setCity] = useState("");
     const [ticketMin, setTicketMin] = useState<number | "">("");
     const [ticketMax, setTicketMax] = useState<number | "">("");
     const [priorityScore, setPriorityScore] = useState<number | "">("");
@@ -50,7 +53,9 @@ export default function AdminInvestorsPage() {
     // Pagination
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
-    const [hasMore, setHasMore] = useState(true);
+    const [total, setTotal] = useState(0);
+    const [pages, setPages] = useState(0);
+    const [exporting, setExporting] = useState(false);
 
     // Modal forms states
     const [isOpen, setIsOpen] = useState(false);
@@ -88,16 +93,22 @@ export default function AdminInvestorsPage() {
         errors: string[];
     } | null>(null);
 
-    // Fetch lists
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedQ(q), 350);
+        return () => clearTimeout(timer);
+    }, [q]);
+
     const loadData = useCallback(async () => {
         setError("");
         setLoading(true);
         try {
             const data = await fetchInvestors({
-                q,
+                q: debouncedQ,
                 investor_type: investorType,
                 stage,
                 industry,
+                country,
+                city,
                 ticket_size_min: ticketMin === "" ? undefined : ticketMin,
                 ticket_size_max: ticketMax === "" ? undefined : ticketMax,
                 priority_score: priorityScore === "" ? undefined : priorityScore,
@@ -106,8 +117,9 @@ export default function AdminInvestorsPage() {
                 sort_by: sortBy,
                 sort_order: sortOrder,
             });
-            setRows(data);
-            setHasMore(data.length === perPage);
+            setRows(data.items);
+            setTotal(data.total);
+            setPages(data.pages);
 
             const allUsers = await fetchAdminUsers();
             setUsers(allUsers);
@@ -116,11 +128,26 @@ export default function AdminInvestorsPage() {
         } finally {
             setLoading(false);
         }
-    }, [q, investorType, stage, industry, ticketMin, ticketMax, priorityScore, page, perPage, sortBy, sortOrder]);
+    }, [debouncedQ, investorType, stage, industry, country, city, ticketMin, ticketMax, priorityScore, page, perPage, sortBy, sortOrder]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const handleExportCsv = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        setError("");
+        setSuccessMsg("");
+        setExporting(true);
+        try {
+            await exportInvestorsCsv();
+            setSuccessMsg("Investor export downloaded successfully.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Export failed");
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const resetForm = () => {
         setFormUserId("");
@@ -316,15 +343,15 @@ export default function AdminInvestorsPage() {
                             className="hidden"
                         />
                     </label>
-                    <a
-                        href={getExportInvestorsUrl()}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#4DA3FF]/20 bg-[#121A2F]/80 text-[#7CC4FF] font-bold hover:bg-[#4DA3FF]/10 transition-colors"
+                    <button
+                        type="button"
+                        onClick={handleExportCsv}
+                        disabled={exporting}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#4DA3FF]/20 bg-[#121A2F]/80 text-[#7CC4FF] font-bold hover:bg-[#4DA3FF]/10 transition-colors disabled:opacity-50 cursor-pointer"
                     >
-                        <Download size={18} />
+                        <Download size={18} className={exporting ? "animate-pulse" : ""} />
                         Export CSV
-                    </a>
+                    </button>
                     <button
                         type="button"
                         onClick={() => loadData()}
@@ -474,6 +501,36 @@ export default function AdminInvestorsPage() {
                         />
                     </div>
 
+                    {/* Country */}
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#A0AEC0] uppercase tracking-wider mb-1.5">Country</label>
+                        <input
+                            type="text"
+                            placeholder="India, US..."
+                            value={country}
+                            onChange={(e) => {
+                                setCountry(e.target.value);
+                                setPage(1);
+                            }}
+                            className="w-full bg-[#0A0F1F] border border-[#4DA3FF]/20 rounded-xl py-2 px-3 text-white text-sm focus:border-[#4DA3FF] focus:outline-none transition-colors"
+                        />
+                    </div>
+
+                    {/* City */}
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#A0AEC0] uppercase tracking-wider mb-1.5">City</label>
+                        <input
+                            type="text"
+                            placeholder="Bangalore, NYC..."
+                            value={city}
+                            onChange={(e) => {
+                                setCity(e.target.value);
+                                setPage(1);
+                            }}
+                            className="w-full bg-[#0A0F1F] border border-[#4DA3FF]/20 rounded-xl py-2 px-3 text-white text-sm focus:border-[#4DA3FF] focus:outline-none transition-colors"
+                        />
+                    </div>
+
                     {/* Priority Score */}
                     <div>
                         <label className="block text-[11px] font-bold text-[#A0AEC0] uppercase tracking-wider mb-1.5">Priority Score</label>
@@ -555,9 +612,24 @@ export default function AdminInvestorsPage() {
                                 rows.map((p) => (
                                     <tr key={p.id} className="hover:bg-white/[0.01] transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-extrabold text-white text-base">{p.user?.name || "N/A"}</div>
-                                            <div className="text-xs text-[#A0AEC0] font-medium mt-0.5">{p.user?.email || "N/A"}</div>
-                                            {p.user?.phone && <div className="text-[10px] text-[#7CC4FF] mt-0.5">{p.user.phone}</div>}
+                                            <div className="flex items-center gap-3">
+                                                {p.user?.profile_image ? (
+                                                    <img
+                                                        src={p.user.profile_image}
+                                                        alt={p.user.name || "Investor"}
+                                                        className="w-9 h-9 rounded-full object-cover border border-[#4DA3FF]/30 shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className="w-9 h-9 rounded-full bg-[#4DA3FF]/10 border border-[#4DA3FF]/20 flex items-center justify-center text-[#7CC4FF] text-xs font-extrabold shrink-0">
+                                                        {(p.user?.name || "?").charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div className="font-extrabold text-white text-base">{p.user?.name || "N/A"}</div>
+                                                    <div className="text-xs text-[#A0AEC0] font-medium mt-0.5">{p.user?.email || "N/A"}</div>
+                                                    {p.user?.phone && <div className="text-[10px] text-[#7CC4FF] mt-0.5">{p.user.phone}</div>}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-white">{p.company_name || "—"}</div>
@@ -652,6 +724,9 @@ export default function AdminInvestorsPage() {
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <span className="text-[#A0AEC0]">
+                            {total} investor{total === 1 ? "" : "s"} total
+                        </span>
                         <button
                             type="button"
                             disabled={page === 1}
@@ -660,10 +735,12 @@ export default function AdminInvestorsPage() {
                         >
                             <ChevronLeft size={16} />
                         </button>
-                        <span className="text-white font-extrabold">Page {page}</span>
+                        <span className="text-white font-extrabold">
+                            Page {page} of {Math.max(pages, 1)}
+                        </span>
                         <button
                             type="button"
-                            disabled={!hasMore}
+                            disabled={page >= pages}
                             onClick={() => setPage((p) => p + 1)}
                             className="p-1.5 rounded-lg border border-[#4DA3FF]/20 hover:bg-[#4DA3FF]/10 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
                         >

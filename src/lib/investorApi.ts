@@ -1,4 +1,6 @@
-import { authFetch, API_ORIGIN, readJsonSafely, getErrorDetail } from "./api";
+import { readJsonSafely, getErrorDetail } from "./api";
+import { authFetch, API_ORIGIN } from "./httpClient";
+import { getAuthToken } from "./auth";
 
 export type UserSummaryRow = {
     id: number;
@@ -31,6 +33,14 @@ export type InvestorProfileRow = {
     user: UserSummaryRow | null;
     created_by: number | null;
     updated_by: number | null;
+};
+
+export type PaginatedInvestors = {
+    items: InvestorProfileRow[];
+    total: number;
+    page: number;
+    per_page: number;
+    pages: number;
 };
 
 export type InvestorCreateParams = {
@@ -71,7 +81,7 @@ export async function fetchInvestors(params: {
     per_page?: number;
     sort_by?: string;
     sort_order?: string;
-} = {}): Promise<InvestorProfileRow[]> {
+} = {}): Promise<PaginatedInvestors> {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, val]) => {
         if (val !== undefined && val !== null && val !== "") {
@@ -84,7 +94,7 @@ export async function fetchInvestors(params: {
         throw new Error("Admin session expired or access denied.");
     }
     if (!res.ok) throw new Error(await getErrorDetail(res, "Failed to load investors"));
-    return ((await readJsonSafely(res)) as InvestorProfileRow[]) || [];
+    return (await readJsonSafely(res)) as PaginatedInvestors;
 }
 
 export async function fetchInvestorById(id: number): Promise<InvestorProfileRow> {
@@ -139,7 +149,7 @@ export async function importInvestorsCsv(file: File): Promise<{
     const formData = new FormData();
     formData.append("file", file);
 
-    const token = localStorage.getItem("token"); // or obtain standard auth token header
+    const token = localStorage.getItem("token");
     const headers: Record<string, string> = {};
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -154,9 +164,47 @@ export async function importInvestorsCsv(file: File): Promise<{
         throw new Error("Admin session expired or access denied.");
     }
     if (!res.ok) throw new Error(await getErrorDetail(res, "Import failed"));
-    return (await readJsonSafely(res)) as any;
+    return (await readJsonSafely(res)) as {
+        status: string;
+        imported: number;
+        skipped: number;
+        errors: string[];
+    };
 }
 
-export function getExportInvestorsUrl(): string {
-    return `${API_ORIGIN}/admin/investors/export`;
+/**
+ * Download investor CSV via authenticated fetch (never use <a href> or window navigation).
+ * Sec-Fetch-Mode must be "cors", not "navigate", with Authorization: Bearer <token>.
+ */
+export async function exportInvestorsCsv(): Promise<void> {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error("Admin session expired or access denied.");
+    }
+
+    const response = await authFetch("/admin/investors/export", {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "text/csv",
+        },
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        throw new Error("Admin session expired or access denied.");
+    }
+    if (!response.ok) {
+        throw new Error(await getErrorDetail(response, "Export failed"));
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "investors_export.csv";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
 }

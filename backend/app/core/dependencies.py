@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -8,6 +10,7 @@ from app.core.security import decode_token
 
 # Standard Bearer JWT from Authorization header (OpenAPI: click Authorize → Bearer <token>)
 http_bearer = HTTPBearer(auto_error=True)
+http_bearer_optional = HTTPBearer(auto_error=False)
 
 
 def _role_str(role) -> str:
@@ -66,6 +69,32 @@ async def get_current_user(
         )
     except Exception:
         raise credentials_exc
+
+
+async def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(http_bearer_optional),
+    db: Session = Depends(get_db),
+):
+    if credentials is None:
+        return None
+    from app.models.user import User
+
+    try:
+        payload = decode_token(credentials.credentials)
+        if payload.get("type") != "access":
+            return None
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if not user or not user.is_active:
+            return None
+        token_role = payload.get("role")
+        if token_role is not None and _role_str(user.role) != str(token_role):
+            return None
+        return user
+    except Exception:
+        return None
 
 
 def require_role(*roles: str):

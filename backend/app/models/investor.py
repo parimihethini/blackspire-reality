@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, JSON, Boolean, Table
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 from app.db.base import Base
+from app.models.mixins import AuditSoftDeleteMixin
 
 # Junction table for InvestorProfile <-> Industry
 investor_industries = Table(
@@ -42,7 +42,7 @@ class Stage(Base):
     )
 
 
-class InvestorProfile(Base):
+class InvestorProfile(AuditSoftDeleteMixin, Base):
     __tablename__ = "investor_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -68,23 +68,11 @@ class InvestorProfile(Base):
     internal_comments = Column(Text, nullable=True)
     priority_score = Column(Integer, default=0)
 
-    # Soft Delete
-    is_deleted = Column(Boolean, default=False, nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
-    deleted_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-
-    # Audit fields
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="investor_profile")
     industries = relationship("Industry", secondary=investor_industries, back_populates="investor_profiles")
     stages = relationship("Stage", secondary=investor_stages, back_populates="investor_profiles")
 
-    # Audit relation helpers (optional, but clean for loading who did what)
-    creator = relationship("User", foreign_keys=[created_by])
-    updater = relationship("User", foreign_keys=[updated_by])
-    deleter = relationship("User", foreign_keys=[deleted_by])
+    creator = relationship("User", foreign_keys="InvestorProfile.created_by")
+    updater = relationship("User", foreign_keys="InvestorProfile.updated_by")
+    deleter = relationship("User", foreign_keys="InvestorProfile.deleted_by")
