@@ -134,15 +134,3 @@ class SiteVisit(Base):
     @builtins.property
     def customer_phone(self) -> str | None:
         return self.phone or (self.customer.phone if self.customer is not None else None)
-
-
-class Notification(Base):
-    __tablename__ = "notifications"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    message = Column(Text, nullable=False)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    user = relationship("User", back_populates="notifications")

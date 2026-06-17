@@ -5,13 +5,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getAuth, clearAuth } from '@/lib/auth';
 import { authFetch, API_ORIGIN } from '@/lib/api';
-import { Bell } from 'lucide-react';
 import { ensurePushSubscribed } from '@/lib/push';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function Navbar() {
     const [auth, setAuth] = useState<{ role: string; loggedIn: boolean; email?: string; profile_image?: string } | null>(null);
-    const [notifications, setNotifications] = useState<any[]>([]);
-    const [showNotifications, setShowNotifications] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -21,13 +19,6 @@ export default function Navbar() {
         return () => window.removeEventListener('storage', checkAuth);
     }, []);
 
-    useEffect(() => {
-        if (auth?.loggedIn) {
-            fetchNotifications();
-            const timer = window.setInterval(fetchNotifications, 15000);
-            return () => window.clearInterval(timer);
-        }
-    }, [auth?.loggedIn]);
 
     useEffect(() => {
         if (auth?.loggedIn) {
@@ -35,30 +26,9 @@ export default function Navbar() {
         }
     }, [auth?.loggedIn]);
 
-    const fetchNotifications = async () => {
-        try {
-            const response = await authFetch(`${API_ORIGIN}/properties/notifications`);
-            if (response.ok) {
-                const data = await response.json();
-                setNotifications(data);
-            }
-        } catch (err) {
-            console.error("Error fetching notifications:", err);
-        }
-    };
+    // Legacy property notifications removed — handled by NotificationBell component
 
-    const markAsRead = async (id: number) => {
-        try {
-            const response = await authFetch(`${API_ORIGIN}/properties/notifications/${id}/read`, {
-                method: "PATCH",
-            });
-            if (response.ok) {
-                setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-            }
-        } catch (err) {
-            console.error("Error marking notification as read:", err);
-        }
-    };
+    // Legacy mark-read removed — handled by NotificationBell component
 
     const handleLogout = () => {
         clearAuth();
@@ -111,7 +81,18 @@ export default function Navbar() {
             return [
                 ...baseLinks,
                 { name: 'Portfolio', path: '/investor/dashboard' },
+                { name: 'Messages', path: '/messaging' },
                 { name: 'Saved Startups', path: '/startups' },
+            ];
+        }
+
+        if (auth.role === 'startup_founder') {
+            return [
+                { name: 'Dashboard', path: '/founder/dashboard' },
+                { name: 'Edit Startup', path: '/founder/startups/edit' },
+                { name: 'CRM', path: '/founder/crm' },
+                { name: 'Messages', path: '/messaging' },
+                { name: 'Marketplace', path: '/startups' },
             ];
         }
 
@@ -172,38 +153,7 @@ export default function Navbar() {
                             </>
                         ) : auth.role === 'customer' ? (
                             <>
-                                <div className="relative">
-                                    <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-[#A0AEC0] hover:text-[#7CC4FF] transition-colors">
-                                        <Bell className="w-5 h-5" />
-                                        {notifications.filter(n => !n.is_read).length > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                                {notifications.filter(n => !n.is_read).length}
-                                            </span>
-                                        )}
-                                    </button>
-                                    {showNotifications && (
-                                        <div className="absolute right-0 mt-2 w-80 bg-[#121A2F] border border-[#4DA3FF]/20 rounded-xl shadow-lg z-50">
-                                            <div className="p-4 border-b border-white/10">
-                                                <h3 className="text-white font-bold">Notifications</h3>
-                                            </div>
-                                            <div className="max-h-64 overflow-y-auto">
-                                                {notifications.length === 0 ? (
-                                                    <p className="p-4 text-[#A0AEC0] text-sm">No notifications</p>
-                                                ) : (
-                                                    notifications.map((n) => (
-                                                        <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-[#0A0F1F] ${!n.is_read ? 'bg-[#4DA3FF]/5' : ''}`}>
-                                                            <p className="text-white text-sm">{n.message}</p>
-                                                            <p className="text-[#A0AEC0] text-xs mt-1">{new Date(n.created_at).toLocaleDateString()}</p>
-                                                            {!n.is_read && (
-                                                                <button onClick={() => markAsRead(n.id)} className="text-[#4DA3FF] text-xs mt-1 hover:underline">Mark as read</button>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                <NotificationBell />
                                 <Link href="/profile" className="flex items-center gap-2 group/prof">
                                     {profileImageSrc ? (
                                         <img src={profileImageSrc} className="w-8 h-8 rounded-full border border-[#4DA3FF]/30 object-cover" />
@@ -217,38 +167,7 @@ export default function Navbar() {
                             </>
                         ) : auth.role === 'seller' ? (
                             <>
-                                <div className="relative">
-                                    <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-[#A0AEC0] hover:text-[#7CC4FF] transition-colors">
-                                        <Bell className="w-5 h-5" />
-                                        {notifications.filter(n => !n.is_read).length > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                                {notifications.filter(n => !n.is_read).length}
-                                            </span>
-                                        )}
-                                    </button>
-                                    {showNotifications && (
-                                        <div className="absolute right-0 mt-2 w-80 bg-[#121A2F] border border-[#4DA3FF]/20 rounded-xl shadow-lg z-50">
-                                            <div className="p-4 border-b border-white/10">
-                                                <h3 className="text-white font-bold">Notifications</h3>
-                                            </div>
-                                            <div className="max-h-64 overflow-y-auto">
-                                                {notifications.length === 0 ? (
-                                                    <p className="p-4 text-[#A0AEC0] text-sm">No notifications</p>
-                                                ) : (
-                                                    notifications.map((n) => (
-                                                        <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-[#0A0F1F] ${!n.is_read ? 'bg-[#4DA3FF]/5' : ''}`}>
-                                                            <p className="text-white text-sm">{n.message}</p>
-                                                            <p className="text-[#A0AEC0] text-xs mt-1">{new Date(n.created_at).toLocaleDateString()}</p>
-                                                            {!n.is_read && (
-                                                                <button onClick={() => markAsRead(n.id)} className="text-[#4DA3FF] text-xs mt-1 hover:underline">Mark as read</button>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                <NotificationBell />
                                 <Link href="/seller/profile" className="flex items-center gap-2 group/prof">
                                     {profileImageSrc ? (
                                         <img src={profileImageSrc} className="w-8 h-8 rounded-full border border-[#4DA3FF]/30 object-cover" />
@@ -259,6 +178,20 @@ export default function Navbar() {
                                 </Link>
                                 <span className="text-white/20 hidden lg:inline">|</span>
                                 <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors font-bold">Logout</button>
+                            </>
+                        ) : auth.role === 'investor' || auth.role === 'startup_founder' ? (
+                            <>
+                                <NotificationBell />
+                                <Link href="/profile" className="flex items-center gap-2 group/prof">
+                                    {profileImageSrc ? (
+                                        <img src={profileImageSrc} className="w-8 h-8 rounded-full border border-[#4DA3FF]/30 object-cover" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-[#4DA3FF]/20 flex items-center justify-center text-[#4DA3FF] text-[10px] font-bold">I</div>
+                                    )}
+                                    <span className="text-[#4DA3FF] group-hover/prof:text-[#7CC4FF] transition-colors">Profile</span>
+                                </Link>
+                                <span className="text-white/20">|</span>
+                                <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors">Logout</button>
                             </>
                         ) : null}
                     </div>

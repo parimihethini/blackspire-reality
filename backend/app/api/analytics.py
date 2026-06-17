@@ -129,3 +129,87 @@ async def property_insights(
         "days_on_market": days,
         "roi_potential": round(roi_potential, 2),
     }
+
+
+@router.get("/pipeline", tags=["Analytics"])
+async def pipeline_analytics(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """CRM conversion funnel and response-time metrics."""
+    from app.services import crm_service
+    from app.models.communication import Conversation, Message
+    from app.models.crm import CrmLead
+    from sqlalchemy import func
+
+    metrics = crm_service.get_pipeline_metrics(db)
+
+    # Avg time from lead creation to first message (response time proxy)
+    first_msg = (
+        db.query(
+            Message.conversation_id,
+            func.min(Message.created_at).label("first_msg_at")
+        )
+        .group_by(Message.conversation_id)
+        .subquery()
+    )
+    avg_response_query = db.query(
+        func.avg(
+            func.extract("epoch", first_msg.c.first_msg_at) -
+            func.extract("epoch", Conversation.created_at)
+        )
+    ).join(Conversation, Conversation.id == first_msg.c.conversation_id).scalar()
+
+    avg_response_hours = round((avg_response_query or 0) / 3600, 1)
+
+    total_conversations = db.query(Conversation).count()
+    total_messages = db.query(Message).filter(Message.is_deleted == False).count()  # noqa: E712
+
+    return {
+        **metrics,
+        "total_conversations": total_conversations,
+        "total_messages": total_messages,
+        "avg_response_hours": avg_response_hours,
+    }
+
+
+@router.get("/engagement", tags=["Analytics"])
+async def engagement_analytics(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """Investor and startup engagement metrics."""
+    from app.models.startup import (
+        StartupInterestExpression, StartupDeckRequest, StartupContactRequest, StartupSave
+    )
+    from app.models.crm import CrmLead
+
+    total_interests = db.query(StartupInterestExpression).count()
+    total_deck_requests = db.query(StartupDeckRequest).count()
+    total_contact_requests = db.query(StartupContactRequest).count()
+    total_saves = db.query(StartupSave).count()
+    total_leads = db.query(CrmLead).count()
+
+    # Top startups by interest
+    from sqlalchemy import func
+    from app.models.startup import StartupProfile
+    top_startups = (
+        db.query(StartupProfile.id, StartupProfile.name, func.count(StartupInterestExpression.id).label("interest_count"))
+        .join(StartupInterestExpression, StartupInterestExpression.startup_id == StartupProfile.id)
+        .group_by(StartupProfile.id, StartupProfile.name)
+        .order_by(func.count(StartupInterestExpression.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        "total_interest_expressions": total_interests,
+        "total_deck_requests": total_deck_requests,
+        "total_contact_requests": total_contact_requests,
+        "total_saves": total_saves,
+        "total_leads_created": total_leads,
+        "top_startups_by_interest": [
+            {"id": r.id, "name": r.name, "interest_count": r.interest_count}
+            for r in top_startups
+        ],
+    }

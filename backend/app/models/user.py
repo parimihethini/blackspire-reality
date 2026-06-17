@@ -58,6 +58,15 @@ class User(Base):
     investments = relationship("Investment", back_populates="investor", lazy="select")
     site_visits = relationship("SiteVisit", back_populates="customer", lazy="select")
     reviews = relationship("Review", back_populates="user", lazy="select")
-    notifications = relationship("Notification", back_populates="user", lazy="select")
+    notifications = relationship("Notification", foreign_keys="[Notification.user_id]", back_populates="user", lazy="select")
     investor_profile = relationship("InvestorProfile", uselist=False, back_populates="user", cascade="all, delete-orphan", foreign_keys="[InvestorProfile.user_id]")
     startup_profiles = relationship("StartupProfile", back_populates="founder", lazy="select", foreign_keys="[StartupProfile.founder_id]")
+
+    # Communication
+    conversations_as_investor = relationship("Conversation", foreign_keys="[Conversation.investor_id]", back_populates="investor", lazy="select")
+    conversations_as_founder  = relationship("Conversation", foreign_keys="[Conversation.founder_id]",  back_populates="founder",  lazy="select")
+    sent_messages             = relationship("Message",      foreign_keys="[Message.sender_id]",         lazy="select")
+
+    # CRM
+    crm_leads_as_founder   = relationship("CrmLead", foreign_keys="[CrmLead.founder_id]",   lazy="select")
+    crm_leads_as_investor  = relationship("CrmLead", foreign_keys="[CrmLead.investor_id]",  lazy="select")

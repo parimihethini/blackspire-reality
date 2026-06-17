@@ -79,17 +79,40 @@ async def price_stream(websocket: WebSocket, property_id: int):
 
 @router.websocket("/notifications/{user_id}")
 async def user_notifications(websocket: WebSocket, user_id: int):
-    """Push notifications channel for a specific user."""
+    """Authenticated push notifications channel for a specific user.
+
+    Client must pass ?token=<access_token> as a query parameter.
+    The user_id path param must match the token's subject claim.
+    """
+    from app.core.security import decode_token
+    from app.services.notification_service import register_ws, unregister_ws
+
+    # ── JWT validation ────────────────────────────────────────────────────────
+    token = websocket.query_params.get("token", "")
+    try:
+        payload = decode_token(token)
+        token_user_id = int(payload.get("sub", -1))
+        if payload.get("type") != "access" or token_user_id != user_id:
+            await websocket.close(code=4001)
+            return
+    except Exception:
+        await websocket.close(code=4001)
+        return
+
     await websocket.accept()
+    register_ws(user_id, websocket)
     try:
         await websocket.send_text(json.dumps({
             "type": "connected",
             "user_id": user_id,
-            "message": "Notifications channel connected",
+            "message": "Notifications channel active",
         }))
         while True:
-            # Keep alive — real notifications pushed via broadcast_price()
             await asyncio.sleep(30)
             await websocket.send_text(json.dumps({"type": "ping"}))
     except WebSocketDisconnect:
         pass
+    except Exception:
+        pass
+    finally:
+        unregister_ws(user_id, websocket)

@@ -175,6 +175,7 @@ async def _load_routers_once():
             reviews, websockets, favorites, notifications, admin as admin_router, 
             document_verification, investors,
             startups, founder_startups, investor_startups, admin_startups,
+            messaging, crm,
         )
         
         # Import all models so SQLAlchemy maps them correctly.
@@ -188,6 +189,8 @@ async def _load_routers_once():
         from app.models import review as _m_review       # noqa
         from app.models import favorite as _m_favorite   # noqa
         from app.models import startup as _m_startup     # noqa
+        from app.models import communication as _m_comm  # noqa
+        from app.models import crm as _m_crm             # noqa
         
         from app.services.email_service import verify_email_service
         verify_email_service()
@@ -202,6 +205,8 @@ async def _load_routers_once():
         app.include_router(reviews.router,                  prefix="/reviews",         tags=["Reviews"])
         app.include_router(websockets.router,               prefix="/ws",              tags=["WebSockets"])
         app.include_router(notifications.router,            prefix="/notifications",   tags=["Notifications"])
+        app.include_router(messaging.router)                                           # prefix in router
+        app.include_router(crm.router)                                                 # prefix in router
         app.include_router(document_verification.router,    prefix="/verification",    tags=["Document Verification"])
         app.include_router(admin_router.router)
         app.include_router(investors.router)

@@ -34,6 +34,12 @@ PERMISSION_DEFINITIONS = [
     ("startups.delete", "Soft-delete startup profiles"),
     ("startups.moderate", "Approve, reject, verify, or suspend startups"),
     ("startups.interact", "Save, contact, and express interest in startups"),
+    # Communication & CRM
+    ("notifications.read",  "Read own notifications"),
+    ("messaging.access",    "Send and receive messages"),
+    ("crm.read",            "Read own CRM leads (founder)"),
+    ("crm.write",           "Manage own CRM leads (founder)"),
+    ("crm.admin",           "View all CRM data (admin)"),
 ]
 
 ROLE_PERMISSION_MAP = {
@@ -44,6 +50,7 @@ ROLE_PERMISSION_MAP = {
         "admin.access", "admin.roles", "investments.read", "analytics.read",
         "investors.read", "investors.write", "investors.delete",
         "startups.read", "startups.write", "startups.delete", "startups.moderate",
+        "notifications.read", "messaging.access", "crm.read", "crm.write", "crm.admin",
     ],
     "team_member": [
         "users.read", "properties.read", "properties.moderate",
@@ -53,18 +60,22 @@ ROLE_PERMISSION_MAP = {
     "startup_founder": [
         "properties.read", "properties.write", "investments.read",
         "startups.read", "startups.write", "startups.delete",
+        "notifications.read", "messaging.access", "crm.read", "crm.write",
     ],
     "seller": [
         "properties.read", "properties.write", "investments.read",
         "startups.read", "startups.write", "startups.delete",
+        "notifications.read", "messaging.access", "crm.read", "crm.write",
     ],
     "investor": [
         "properties.read", "investments.read", "investments.write",
         "startups.read", "startups.interact",
+        "notifications.read", "messaging.access",
     ],
     "customer": [
         "properties.read", "investments.read", "investments.write",
         "startups.read", "startups.interact",
+        "notifications.read", "messaging.access",
     ],
 }
 

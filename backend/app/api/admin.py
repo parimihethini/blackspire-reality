@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.models.user import User, UserRole
@@ -227,3 +227,55 @@ async def admin_stats(
         new_investors_this_week=new_investors_this_week,
         pending_startup_requests=pending_startup_requests,
     )
+
+
+# ── Admin: Conversations monitor ──────────────────────────────────────────────
+
+@router.get("/conversations", summary="Admin: list all conversations", tags=["Admin"])
+async def admin_list_conversations(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+):
+    from app.models.communication import Conversation
+    convs = (
+        db.query(Conversation)
+        .options(
+            joinedload(Conversation.investor),
+            joinedload(Conversation.founder),
+            joinedload(Conversation.startup),
+        )
+        .order_by(Conversation.last_message_at.desc().nullslast(), Conversation.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    total = db.query(Conversation).count()
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "items": [
+            {
+                "id": c.id,
+                "startup_id": c.startup_id,
+                "startup_name": c.startup.name if c.startup else None,
+                "investor": {"id": c.investor_id, "name": c.investor.name if c.investor else None, "email": c.investor.email if c.investor else None},
+                "founder":  {"id": c.founder_id,  "name": c.founder.name  if c.founder  else None, "email": c.founder.email  if c.founder  else None},
+                "subject": c.subject,
+                "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in convs
+        ],
+    }
+
+
+@router.get("/crm/metrics", summary="Admin: CRM pipeline metrics", tags=["Admin"])
+async def admin_crm_metrics(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+):
+    from app.services import crm_service
+    return crm_service.get_pipeline_metrics(db)

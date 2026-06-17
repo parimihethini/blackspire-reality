@@ -17,6 +17,8 @@ def _import_all_models() -> None:
     import app.models.rbac       # noqa: F401
     import app.models.investor   # noqa: F401
     import app.models.startup    # noqa: F401
+    import app.models.communication  # noqa: F401
+    import app.models.crm            # noqa: F401
 
 
 def _alembic_version_exists() -> bool:
@@ -36,8 +38,6 @@ def _alembic_version_exists() -> bool:
 def ensure_schema() -> None:
     """Create missing tables and align Alembic revision state."""
     _import_all_models()
-    Base.metadata.create_all(bind=engine)
-    print("[DB] Schema ensured via create_all [OK]")
 
     from alembic import command
     from alembic.config import Config
@@ -49,8 +49,12 @@ def ensure_schema() -> None:
         command.upgrade(alembic_cfg, "head")
         print("[DB] Alembic upgrade head [OK]")
     else:
-        command.stamp(alembic_cfg, "head")
-        print("[DB] Fresh database — Alembic stamped to head [OK]")
+        command.upgrade(alembic_cfg, "head")
+        print("[DB] Fresh database — Alembic migrated to head [OK]")
+
+    # Safety net for models not yet captured in migrations (no-op when schema is current).
+    Base.metadata.create_all(bind=engine)
+    print("[DB] Schema ensured [OK]")
 
     from app.db.session import SessionLocal
     from app.db.seed_rbac import seed_rbac

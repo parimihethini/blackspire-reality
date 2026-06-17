@@ -4,17 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getAuth, clearAuth } from "@/lib/auth";
 import Link from "next/link";
-import { LayoutDashboard, Users, Home, BarChart3, LogOut, Menu, X, Briefcase, Rocket } from "lucide-react";
+import { LayoutDashboard, Users, Home, BarChart3, LogOut, Menu, X, Briefcase, Rocket, MessageSquare, TrendingUp } from "lucide-react";
 
 const INVESTOR_ADMIN_ROLES = ["admin", "super_admin"];
 
 const NAV = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Users", href: "/admin/users", icon: Users },
-    { name: "Investors", href: "/admin/investors", icon: Briefcase, roles: INVESTOR_ADMIN_ROLES },
-    { name: "Startups", href: "/admin/startups", icon: Rocket },
-    { name: "Properties", href: "/admin/properties", icon: Home },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "Dashboard",     href: "/admin/dashboard",     icon: LayoutDashboard },
+    { name: "Users",         href: "/admin/users",         icon: Users },
+    { name: "Investors",     href: "/admin/investors",     icon: Briefcase, roles: INVESTOR_ADMIN_ROLES },
+    { name: "Startups",      href: "/admin/startups",      icon: Rocket },
+    { name: "Properties",    href: "/admin/properties",    icon: Home },
+    { name: "Conversations", href: "/admin/conversations", icon: MessageSquare },
+    { name: "CRM Pipeline",  href: "/admin/crm",          icon: TrendingUp },
+    { name: "Analytics",     href: "/admin/analytics",     icon: BarChart3 },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

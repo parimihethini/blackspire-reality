@@ -97,7 +97,19 @@ async def approve_startup(
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_team_member),
 ):
-    return startup_service.approve_startup(db, startup_id, admin)
+    result = startup_service.approve_startup(db, startup_id, admin)
+    try:
+        from app.services import notification_service as ns
+        ns.notify_startup_approved(
+            db,
+            founder_id=result.founder_id,
+            startup_name=result.name,
+            startup_id=result.id,
+            actor_id=admin.id,
+        )
+    except Exception as exc:
+        print(f"[Notification] startup_approved failed: {exc}")
+    return result
 
 
 @router.post("/{startup_id}/reject", response_model=StartupProfileResponse)
@@ -107,7 +119,20 @@ async def reject_startup(
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_team_member),
 ):
-    return startup_service.reject_startup(db, startup_id, admin, body.reason)
+    result = startup_service.reject_startup(db, startup_id, admin, body.reason)
+    try:
+        from app.services import notification_service as ns
+        ns.notify_startup_rejected(
+            db,
+            founder_id=result.founder_id,
+            startup_name=result.name,
+            startup_id=result.id,
+            actor_id=admin.id,
+            reason=body.reason,
+        )
+    except Exception as exc:
+        print(f"[Notification] startup_rejected failed: {exc}")
+    return result
 
 
 @router.post("/{startup_id}/verify", response_model=StartupProfileResponse)

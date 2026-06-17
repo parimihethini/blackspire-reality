@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.dependencies import get_current_seller, get_current_customer, get_any_user
-from app.models.property import Property, SiteVisit, Notification
+from app.models.property import Property, SiteVisit
 from app.models.user import User
+from app.models.communication import NotificationType
+from app.services import notification_service
 from app.services.push_service import get_subscription, send_push
 from app.schemas.property import (
     PropertyCreate, PropertyUpdate, PropertyResponse,
@@ -209,12 +211,12 @@ async def update_visit_status(
         if normalized_status == "approved"
         else "Your property visit has been declined"
     )
-    db.add(
-        Notification(
-            user_id=visit.customer_id,
-            message=message,
-            is_read=False,
-        )
+    notification_service.notify(
+        db,
+        user_id=visit.customer_id,
+        type=NotificationType.admin_action_performed,
+        title="Property visit update",
+        body=message,
     )
     db.commit()
     db.refresh(visit)
@@ -231,12 +233,7 @@ async def list_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_any_user),
 ):
-    rows = (
-        db.query(Notification)
-        .filter(Notification.user_id == current_user.id)
-        .order_by(Notification.created_at.desc())
-        .all()
-    )
+    rows = notification_service.get_notifications(db, current_user.id, limit=100)
     return rows
 
 
@@ -246,15 +243,9 @@ async def mark_notification_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_any_user),
 ):
-    row = (
-        db.query(Notification)
-        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
-        .first()
-    )
+    row = notification_service.mark_read(db, notification_id, current_user.id)
     if not row:
         raise HTTPException(status_code=404, detail="Notification not found")
-    row.is_read = True
-    db.commit()
     return {"message": "Notification marked as read"}
 
 

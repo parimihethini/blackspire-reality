@@ -111,6 +111,21 @@ def request_pitch_deck(db: Session, startup_id: int, investor: User, body: DeckR
     db.add(req)
     db.commit()
     db.refresh(req)
+
+    # Notify founder
+    try:
+        from app.services import notification_service as ns
+        ns.notify_deck_request(
+            db,
+            founder_id=profile.founder_id,
+            investor_name=investor.name or investor.email,
+            startup_name=profile.name,
+            startup_id=startup_id,
+            actor_id=investor.id,
+        )
+    except Exception as exc:
+        print(f"[Notification] deck_request failed: {exc}")
+
     return req
 
 
@@ -128,6 +143,21 @@ def contact_founder(db: Session, startup_id: int, investor: User, body: ContactR
     db.add(req)
     db.commit()
     db.refresh(req)
+
+    # Notify founder
+    try:
+        from app.services import notification_service as ns
+        ns.notify_contact_request(
+            db,
+            founder_id=profile.founder_id,
+            investor_name=investor.name or investor.email,
+            startup_name=profile.name,
+            startup_id=startup_id,
+            actor_id=investor.id,
+        )
+    except Exception as exc:
+        print(f"[Notification] contact_request failed: {exc}")
+
     return req
 
 
@@ -163,6 +193,34 @@ def express_interest(
     db.add(expr)
     db.commit()
     db.refresh(expr)
+
+    # Notify founder + auto-create CRM lead
+    try:
+        from app.services import notification_service as ns
+        ns.notify_interest_expressed(
+            db,
+            founder_id=profile.founder_id,
+            investor_name=investor.name or investor.email,
+            startup_name=profile.name,
+            startup_id=startup_id,
+            actor_id=investor.id,
+        )
+    except Exception as exc:
+        print(f"[Notification] interest_expressed failed: {exc}")
+
+    try:
+        from app.services import crm_service
+        crm_service.auto_create_lead(
+            db,
+            startup_id=startup_id,
+            investor_id=investor.id,
+            founder_id=profile.founder_id,
+            interest_level=body.interest_level,
+            source="interest_expression",
+        )
+    except Exception as exc:
+        print(f"[CRM] auto_create_lead failed: {exc}")
+
     return expr
 
 
