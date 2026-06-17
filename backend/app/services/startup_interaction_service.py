@@ -124,7 +124,7 @@ def request_pitch_deck(db: Session, startup_id: int, investor: User, body: DeckR
             actor_id=investor.id,
         )
     except Exception as exc:
-        print(f"[Notification] deck_request failed: {exc}")
+        print(f"[Notification] deck_request failed: {type(exc).__name__}: {exc!s}".encode("ascii", "backslashreplace").decode())
 
     return req
 
@@ -156,7 +156,7 @@ def contact_founder(db: Session, startup_id: int, investor: User, body: ContactR
             actor_id=investor.id,
         )
     except Exception as exc:
-        print(f"[Notification] contact_request failed: {exc}")
+        print(f"[Notification] contact_request failed: {type(exc).__name__}: {exc!s}".encode("ascii", "backslashreplace").decode())
 
     return req
 
@@ -206,7 +206,8 @@ def express_interest(
             actor_id=investor.id,
         )
     except Exception as exc:
-        print(f"[Notification] interest_expressed failed: {exc}")
+        db.rollback()
+        print(f"[Notification] interest_expressed failed: {type(exc).__name__}: {exc!s}".encode("ascii", "backslashreplace").decode())
 
     try:
         from app.services import crm_service
@@ -219,7 +220,7 @@ def express_interest(
             source="interest_expression",
         )
     except Exception as exc:
-        print(f"[CRM] auto_create_lead failed: {exc}")
+        print(f"[CRM] auto_create_lead failed: {type(exc).__name__}: {exc!s}".encode("ascii", "backslashreplace").decode())
 
     return expr
 

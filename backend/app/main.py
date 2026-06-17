@@ -100,7 +100,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
-    print(f"[DB ERROR] {request.method} {request.url.path}: {exc}")
+    print(f"[DB ERROR] {request.method} {request.url.path}: {exc!s}".encode("ascii", "backslashreplace").decode())
     return JSONResponse(
         status_code=503,
         content={"detail": "Database temporarily unavailable. Please try again later."},
