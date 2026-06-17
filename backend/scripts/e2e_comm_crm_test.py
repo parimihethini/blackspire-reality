@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env.example")
 
 from fastapi.testclient import TestClient
 
@@ -22,13 +22,16 @@ from app.services import crm_service, notification_service
 
 client = TestClient(app)
 
+# Read E2E password once from env
+E2E_PASSWORD = os.environ.get("E2E_TEST_PASSWORD")
+
 
 def _mk_user(db, role: UserRole, prefix: str) -> User:
     email = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com"
     user = User(
         email=email,
         name=f"{prefix} User",
-        hashed_password=hash_password("E2eTestPass123!"),
+        hashed_password=hash_password(E2E_PASSWORD),
         role=role,
         is_active=True,
         is_verified=True,
@@ -49,7 +52,12 @@ def _login(email: str, password: str, role: str) -> dict:
 def main() -> int:
     db = SessionLocal()
     _import_all_models()
-    password = "E2eTestPass123!"
+    password = E2E_PASSWORD
+
+    if not password:
+        raise SystemExit(
+            "ERROR: E2E_TEST_PASSWORD must be set in backend/.env.example or the environment."
+        )
     try:
         founder = _mk_user(db, UserRole.startup_founder, "founder")
         investor = _mk_user(db, UserRole.investor, "investor")

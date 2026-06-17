@@ -5,8 +5,8 @@ Run with:
     venv/Scripts/python.exe verify_investors.py
 
 Required env vars (add to backend/.env for local use):
-  TEST_ADMIN_EMAIL=testadmin@example.com
-  TEST_ADMIN_PASSWORD=your_admin_password
+    TEST_ADMIN_EMAIL: testadmin@example.com
+    TEST_ADMIN_PASSWORD: your_admin_password
 """
 import os
 import sys
@@ -18,7 +18,7 @@ if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(str(backend_root / ".env.example"))
 
 _ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL")
 _ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD")
@@ -71,7 +71,12 @@ def verify_phase2():
     super_email = "super_admin_verifier@example.com"
     existing_user_email = "existing_investor_user@example.com"
     new_user_email = "new_investor_user@example.com"
-    test_password = "VerifierTestPass123!"
+    test_password = os.environ.get("VERIFIER_TEST_PASSWORD")
+
+    if not test_password:
+        raise SystemExit(
+            "ERROR: VERIFIER_TEST_PASSWORD must be set in backend/.env.example or the environment."
+        )
 
     for email in [customer_email, team_email, super_email, existing_user_email, new_user_email]:
         u = db.query(User).filter(User.email == email).first()
@@ -174,7 +179,7 @@ def verify_phase2():
         "email": new_user_email,
         "name": "New Investor User",
         "phone": "9876543210",
-        "password": "SecurePassword123!",
+        "password": os.environ.get("NEW_INVESTOR_PASSWORD", test_password),
         "company_name": "Hyperion PE",
         "designation": "Associate",
         "investor_type": "PE",

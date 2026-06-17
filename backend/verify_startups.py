@@ -14,7 +14,7 @@ if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(str(backend_root / ".env.example"))
 
 
 import app.services.email_service
@@ -59,7 +59,12 @@ def verify_startups():
     founder_email = "founder_verifier@example.com"
     investor_email = "investor_verifier@example.com"
     customer_email = "customer_startup_verifier@example.com"
-    test_password = "VerifierTestPass123!"
+    test_password = os.environ.get("VERIFIER_TEST_PASSWORD")
+
+    if not test_password:
+        raise SystemExit(
+            "ERROR: VERIFIER_TEST_PASSWORD must be set in backend/.env.example or the environment."
+        )
 
     for email in [admin_email, founder_email, investor_email, customer_email]:
         u = db.query(User).filter(User.email == email).first()

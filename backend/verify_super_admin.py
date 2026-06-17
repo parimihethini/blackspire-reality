@@ -4,10 +4,10 @@ Run with:
     venv/Scripts/python.exe verify_super_admin.py
 
 Required env vars (add to backend/.env for local use):
-  TEST_SUPER_ADMIN_EMAIL=superadmin@example.com
-  TEST_SUPER_ADMIN_PASSWORD=your_super_admin_password
-  TEST_ADMIN_EMAIL=testadmin@example.com
-  TEST_ADMIN_PASSWORD=your_admin_password
+    TEST_SUPER_ADMIN_EMAIL: superadmin@example.com
+    TEST_SUPER_ADMIN_PASSWORD: your_super_admin_password
+    TEST_ADMIN_EMAIL: testadmin@example.com
+    TEST_ADMIN_PASSWORD: your_admin_password
 """
 import os
 import sys
@@ -19,7 +19,9 @@ if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(str(backend_root / ".env.example"))
+
+TEMP_VERIFICATION_PASSWORD = os.environ.get("TEMP_VERIFICATION_PASSWORD")
 
 _SUPER_ADMIN_EMAIL = os.environ.get("TEST_SUPER_ADMIN_EMAIL")
 _SUPER_ADMIN_PASSWORD = os.environ.get("TEST_SUPER_ADMIN_PASSWORD")
@@ -31,6 +33,7 @@ _missing = [k for k, v in {
     "TEST_SUPER_ADMIN_PASSWORD": _SUPER_ADMIN_PASSWORD,
     "TEST_ADMIN_EMAIL": _ADMIN_EMAIL,
     "TEST_ADMIN_PASSWORD": _ADMIN_PASSWORD,
+    "TEMP_VERIFICATION_PASSWORD": TEMP_VERIFICATION_PASSWORD,
 }.items() if not v]
 if _missing:
     raise SystemExit(
@@ -79,7 +82,7 @@ def verify_all():
     temp_user = User(
         name="Temp Verification User",
         email=temp_email,
-        hashed_password=hash_password("TempPassword123!"),
+        hashed_password=hash_password(TEMP_VERIFICATION_PASSWORD),
         role=UserRole.customer,
         is_verified=True,
         is_active=True

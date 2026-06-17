@@ -3,9 +3,9 @@ Test property publish via local API and direct DB insert.
 Credentials are read from environment variables — never hardcode them here.
 
 Required env vars (add to backend/.env for local use):
-  TEST_SELLER_EMAIL=your_seller@example.com
-  TEST_SELLER_PASSWORD=your_password
-  DATABASE_URL=postgresql://user:pass@host:port/dbname
+    TEST_SELLER_EMAIL: your_seller@example.com
+    TEST_SELLER_PASSWORD: your_password
+    DATABASE_URL: postgresql://user:pass@host:port/dbname
 """
 import os
 import urllib.request
@@ -16,7 +16,7 @@ import traceback
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv(Path(__file__).resolve().parent / ".env.example")
 
 DB_URL = os.environ.get("DATABASE_URL")
 API_BASE = "http://localhost:8000"

@@ -3,8 +3,8 @@ Test property publish across multiple types via local API.
 Credentials are read from environment variables — never hardcode them here.
 
 Required env vars (add to backend/.env for local use):
-  TEST_SELLER_EMAIL=your_seller@example.com
-  TEST_SELLER_PASSWORD=your_password
+    TEST_SELLER_EMAIL: your_seller@example.com
+    TEST_SELLER_PASSWORD: your_password
 """
 import os
 import urllib.request
@@ -13,7 +13,7 @@ import urllib.error
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv(Path(__file__).resolve().parent / ".env.example")
 
 seller_email = os.environ.get("TEST_SELLER_EMAIL")
 seller_password = os.environ.get("TEST_SELLER_PASSWORD")
