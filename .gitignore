@@ -44,3 +44,5 @@ backend/*.pickle
 cred.txt
 token.txt__pycache__/ 
 *.pyc 
+__pycache__/ 
+*.pyc 
