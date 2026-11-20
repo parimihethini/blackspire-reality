@@ -1,27 +1,44 @@
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+from pydantic import ValidationError
+from fastapi import HTTPException, status
 
-from typing import Dict, Optional
+logger = logging.getLogger(__name__)
 
-def generate_document_summary(extracted_data: Dict[str, Optional[str]], is_valid: bool) -> str:
-    """
-    Generates a safe summary based ONLY on extracted data.
-    Does NOT hallucinate missing fields.
-    """
-    if not is_valid:
-        return "Document verification failed. The provided image does not appear to be a valid property document."
-        
-    reg = extracted_data.get("registration_number")
-    date = extracted_data.get("date")
-    
-    summary = "Document verified successfully. "
-    
-    if reg:
-        summary += f"Detected Registration Number: {reg}. "
-    else:
-        summary += "Registration number could not be clearly identified. "
-        
-    if date:
-        summary += f"Document Date: {date}. "
-    else:
-        summary += "Issue date not detected."
-        
-    return summary.strip()
+class AIService:
+    @staticmethod
+    def process_ai_matching(db_session, startup_id: str, investor_id: str) -> dict:
+        try:
+            # Simulated AI Matching logic execution
+            if not startup_id or not investor_id:
+                raise ValueError("Invalid startup or investor identifier provided.")
+            
+            # Perform matching computation...
+            match_score = 88.5
+            return {
+                "startup_id": startup_id,
+                "investor_id": investor_id,
+                "match_score": match_score,
+                "status": "success"
+            }
+            
+        except ValueError as ve:
+            logger.warning(f"Validation error during AI matching: {ve}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(ve)
+            )
+        except SQLAlchemyError as se:
+            logger.error(f"Database error during AI matching transaction: {se}")
+            db_session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="A database error occurred while processing AI recommendations."
+            )
+        except Exception as e:
+            logger.critical(f"Unexpected unhandled error in AI service: {e}", exc_info=True)
+            db_session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An unexpected error occurred in the AI processing engine."
+            )

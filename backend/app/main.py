@@ -14,6 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
+
 # Force-load backend/.env regardless of cwd
 def _force_load_dotenv(dotenv_path: Path) -> None:
     try:
@@ -30,6 +31,7 @@ def _force_load_dotenv(dotenv_path: Path) -> None:
         if key:
             os.environ.setdefault(key, val)
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 _force_load_dotenv(ENV_PATH)
@@ -41,6 +43,7 @@ from app.db.init_db import ensure_schema
 
 # Track if database has been initialized
 _db_initialized = False
+
 
 async def _initialize_database_if_needed():
     """Ensure tables exist before handling DB-backed requests."""
@@ -61,6 +64,7 @@ async def _initialize_database_if_needed():
     except Exception as e:
         print(f"[DB] Database initialization failed: {e}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database schema and email service before accepting traffic."""
@@ -77,6 +81,7 @@ def _verify_email_on_startup() -> None:
 
     verify_email_service()
 
+
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])
 
 app = FastAPI(
@@ -92,11 +97,13 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code >= 400:
         print(f"[HTTP {exc.status_code}] {request.method} {request.url.path}: {exc.detail}")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
@@ -106,17 +113,25 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         content={"detail": "Database temporarily unavailable. Please try again later."},
     )
 
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     print(f"[ERROR] {request.method} {request.url.path}: {exc}")
-    detail = str(exc) if settings.DEBUG else "Internal Server Error"
+    detail = str(exc) if getattr(settings, "DEBUG", False) else "Internal Server Error"
     return JSONResponse(
         status_code=500,
         content={"detail": detail},
     )
 
-# CORS: explicit origins plus Vercel preview/production deployments.
-allow_origins = list(dict.fromkeys(settings.ALLOWED_ORIGINS))
+
+# CORS: explicit origins plus local dev servers and Vercel preview/production deployments.
+allow_origins = list(dict.fromkeys([
+    *settings.ALLOWED_ORIGINS,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]))
 
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
@@ -130,6 +145,7 @@ app.add_middleware(
     max_age=3600,
 )
 
+
 @app.get("/", tags=["Health"])
 async def root():
     return {
@@ -138,6 +154,7 @@ async def root():
         "health": "/health",
         "docs": "/docs",
     }
+
 
 @app.get("/health", tags=["Health"])
 async def health():
@@ -159,70 +176,87 @@ async def health():
         },
     )
 
+
 # ── Lazy load all routers on first request ──
 _routers_loaded = False
+
 
 async def _load_routers_once():
     """Load all routers once on first API request."""
     global _routers_loaded
     if _routers_loaded:
         return
-    
+
     print("[Routers] Loading all routers...")
     try:
         from app.api import (
-            auth, users, properties, ai, analytics, investments, 
-            reviews, websockets, favorites, notifications, admin as admin_router, 
+            auth, users, properties, ai, analytics, investments,
+            reviews, websockets, favorites, notifications, admin as admin_router,
             document_verification, investors,
             startups, founder_startups, investor_startups, admin_startups,
             messaging, crm,
         )
-        
+
         # Import all models so SQLAlchemy maps them correctly.
         # IMPORTANT: must use 'from app.models import X' NOT 'import app.models.X'.
         # The dotted form 'import app.models.X' binds the bare name 'app' in this
         # function's local scope, shadowing the module-level FastAPI instance and
         # causing: AttributeError: module 'app' has no attribute 'include_router'
-        from app.models import user as _m_user           # noqa
-        from app.models import property as _m_property   # noqa
-        from app.models import investment as _m_invest   # noqa
-        from app.models import review as _m_review       # noqa
-        from app.models import favorite as _m_favorite   # noqa
-        from app.models import startup as _m_startup     # noqa
-        from app.models import communication as _m_comm  # noqa
-        from app.models import crm as _m_crm             # noqa
-        
+        from app.models import user as _m_user            # noqa
+        from app.models import property as _m_property    # noqa
+        from app.models import investment as _m_invest    # noqa
+        from app.models import review as _m_review        # noqa
+        from app.models import favorite as _m_favorite    # noqa
+        from app.models import startup as _m_startup      # noqa
+        from app.models import communication as _m_comm   # noqa
+        from app.models import crm as _m_crm              # noqa
+
         from app.services.email_service import verify_email_service
         verify_email_service()
- 
-        app.include_router(auth.router,                     prefix="/auth",            tags=["Authentication"])
-        app.include_router(users.router,                    prefix="/users",           tags=["Users"])
-        app.include_router(properties.router,               prefix="/properties",      tags=["Properties"])
-        app.include_router(ai.router,                       prefix="/ai",              tags=["AI Systems"])
-        app.include_router(analytics.router,                prefix="/analytics",       tags=["Analytics"])
-        app.include_router(investments.router,              prefix="/investments",     tags=["Investments"])
-        app.include_router(favorites.router,                prefix="/favorites",       tags=["Favorites"])
-        app.include_router(reviews.router,                  prefix="/reviews",         tags=["Reviews"])
-        app.include_router(websockets.router,               prefix="/ws",              tags=["WebSockets"])
-        app.include_router(notifications.router,            prefix="/notifications",   tags=["Notifications"])
-        app.include_router(messaging.router)                                           # prefix in router
-        app.include_router(crm.router)                                                 # prefix in router
-        app.include_router(document_verification.router,    prefix="/verification",    tags=["Document Verification"])
+
+        # Root mounts
+        app.include_router(auth.router,                  prefix="/auth",          tags=["Authentication"])
+        app.include_router(users.router,                 prefix="/users",         tags=["Users"])
+        app.include_router(properties.router,            prefix="/properties",    tags=["Properties"])
+        app.include_router(ai.router,                    prefix="/ai",            tags=["AI Systems"])
+        app.include_router(analytics.router,             prefix="/analytics",     tags=["Analytics"])
+        app.include_router(investments.router,           prefix="/investments",   tags=["Investments"])
+        app.include_router(favorites.router,             prefix="/favorites",     tags=["Favorites"])
+        app.include_router(reviews.router,               prefix="/reviews",       tags=["Reviews"])
+        app.include_router(websockets.router,            prefix="/ws",            tags=["WebSockets"])
+        app.include_router(notifications.router,         prefix="/notifications", tags=["Notifications"])
+        app.include_router(messaging.router)                                      # prefix in router
+        app.include_router(crm.router)                                            # prefix in router
+        app.include_router(document_verification.router, prefix="/verification",  tags=["Document Verification"])
         app.include_router(admin_router.router)
         app.include_router(investors.router)
         app.include_router(startups.router)
         app.include_router(founder_startups.router)
         app.include_router(investor_startups.router)
         app.include_router(admin_startups.router)
-        
+
+        # /api/v1 mounts so frontend clients targeting /api/v1/* resolve cleanly
+        app.include_router(auth.router,                  prefix="/api/v1/auth",          tags=["Authentication v1"])
+        app.include_router(users.router,                 prefix="/api/v1/users",         tags=["Users v1"])
+        app.include_router(properties.router,            prefix="/api/v1/properties",    tags=["Properties v1"])
+        app.include_router(ai.router,                    prefix="/api/v1/ai",            tags=["AI Systems v1"])
+        app.include_router(analytics.router,             prefix="/api/v1/analytics",     tags=["Analytics v1"])
+        app.include_router(investments.router,           prefix="/api/v1/investments",   tags=["Investments v1"])
+        app.include_router(favorites.router,             prefix="/api/v1/favorites",     tags=["Favorites v1"])
+        app.include_router(reviews.router,               prefix="/api/v1/reviews",       tags=["Reviews v1"])
+        app.include_router(notifications.router,         prefix="/api/v1/notifications", tags=["Notifications v1"])
+        app.include_router(document_verification.router, prefix="/api/v1/verification",  tags=["Document Verification v1"])
+
         print("[Routers] All routers loaded successfully [OK]")
         _routers_loaded = True
     except Exception as e:
         print(f"[Routers] ERROR loading routers: {e}")
         raise
 
+
 # Paths that do not need the full API router tree loaded.
 _SKIP_ROUTER_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc", "/favicon.ico"}
+
 
 @app.middleware("http")
 async def load_routers_middleware(request, call_next):

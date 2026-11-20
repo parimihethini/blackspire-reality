@@ -1,78 +1,87 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, JSON, Boolean, Table
+from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Table, Text
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.models.mixins import AuditSoftDeleteMixin
 
-# Junction table for InvestorProfile <-> Industry
 investor_industries = Table(
     "investor_industries",
     Base.metadata,
-    Column("investor_profile_id", Integer, ForeignKey("investor_profiles.id", ondelete="CASCADE"), primary_key=True),
-    Column("industry_id", Integer, ForeignKey("industries.id", ondelete="CASCADE"), primary_key=True),
+    Column("investor_id", Integer, ForeignKey("investor_profiles.id"), primary_key=True),
+    Column("industry_id", Integer, ForeignKey("industries.id"), primary_key=True),
+    extend_existing=True,
 )
 
-# Junction table for InvestorProfile <-> Stage
 investor_stages = Table(
     "investor_stages",
     Base.metadata,
-    Column("investor_profile_id", Integer, ForeignKey("investor_profiles.id", ondelete="CASCADE"), primary_key=True),
-    Column("stage_id", Integer, ForeignKey("stages.id", ondelete="CASCADE"), primary_key=True),
+    Column("investor_id", Integer, ForeignKey("investor_profiles.id"), primary_key=True),
+    Column("stage_id", Integer, ForeignKey("stages.id"), primary_key=True),
+    extend_existing=True,
 )
 
 
 class Industry(Base):
     __tablename__ = "industries"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, index=True, nullable=False)
-
-    investor_profiles = relationship(
-        "InvestorProfile", secondary=investor_industries, back_populates="industries"
-    )
+    name = Column(String, unique=True, nullable=False, index=True)
 
 
 class Stage(Base):
     __tablename__ = "stages"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, index=True, nullable=False)
-
-    investor_profiles = relationship(
-        "InvestorProfile", secondary=investor_stages, back_populates="stages"
-    )
+    name = Column(String, unique=True, nullable=False, index=True)
 
 
-class InvestorProfile(AuditSoftDeleteMixin, Base):
+class InvestorProfile(Base):
     __tablename__ = "investor_profiles"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True, index=True)
+    investor_name = Column(String, nullable=True, index=True)
+    company_name = Column(String, nullable=True)
+    designation = Column(String, nullable=True)
+    investor_type = Column(String, nullable=True, index=True)
+    profile_photo = Column(String, nullable=True)
 
-    # Basic Info
-    company_name = Column(String(255), nullable=True)
-    designation = Column(String(100), nullable=True)
-    investor_type = Column(String(50), nullable=True)  # Angel, VC, PE, Family Office, Corporate, Other
+    # Contact Details
+    email = Column(String, unique=True, index=True, nullable=True)
+    phone_number = Column(String, nullable=True)
+    linkedin = Column(String, nullable=True)
+    linkedin_url = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    website_url = Column(String, nullable=True)
 
-    # Contact & Links
-    linkedin_url = Column(String(255), nullable=True)
-    website_url = Column(String(255), nullable=True)
-
-    # Investment Preferences
+    # Investment Details
+    investment_stage = Column(String, index=True, nullable=True)
     ticket_size_min = Column(Float, nullable=True)
     ticket_size_max = Column(Float, nullable=True)
-    preferred_countries = Column(JSON, default=list)  # JSON list of strings
-    preferred_cities = Column(JSON, default=list)     # JSON list of strings
+    preferred_industries = Column(JSON, nullable=True)
+    preferred_countries = Column(JSON, nullable=True)
+    preferred_cities = Column(JSON, nullable=True)
 
-    # Admin Info & Additional
+    # Portfolio & Additional Data
+    portfolio_investments = Column(JSON, nullable=True)
+    exits = Column(JSON, nullable=True)
+    unicorn_investments = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     internal_comments = Column(Text, nullable=True)
     priority_score = Column(Integer, default=0)
 
-    # Relationships
-    user = relationship("User", foreign_keys=[user_id], back_populates="investor_profile")
-    industries = relationship("Industry", secondary=investor_industries, back_populates="investor_profiles")
-    stages = relationship("Stage", secondary=investor_stages, back_populates="investor_profiles")
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    created_by = Column(Integer, nullable=True)
+    updated_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    creator = relationship("User", foreign_keys="InvestorProfile.created_by")
-    updater = relationship("User", foreign_keys="InvestorProfile.updated_by")
-    deleter = relationship("User", foreign_keys="InvestorProfile.deleted_by")
+    user = relationship("User", foreign_keys=[user_id], back_populates="investor_profile")
+    industries = relationship("Industry", secondary=investor_industries)
+    stages = relationship("Stage", secondary=investor_stages)
+
+
+# Alias kept for backward compatibility
+InvestorModel = InvestorProfile

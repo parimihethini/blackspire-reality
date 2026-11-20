@@ -42,4 +42,5 @@ next-env.d.ts
 backend/*.json
 backend/*.pickle
 cred.txt
-token.txt
+token.txt__pycache__/ 
+*.pyc 

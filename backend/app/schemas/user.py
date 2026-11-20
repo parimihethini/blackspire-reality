@@ -1,48 +1,59 @@
-from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional
 from datetime import datetime
-from app.models.user import UserRole
+from typing import Any, Dict, Optional
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-class UserCreate(BaseModel):
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
     name: str
     email: EmailStr
     phone: Optional[str] = None
-    password: str
-    role: UserRole
+    role: str
+    profile_image: Optional[str] = None
+    auth_provider: Optional[str] = None
+    is_active: bool = True
+    is_verified: bool = False
+    created_at: Optional[datetime] = None
 
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
 
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        if len(v.strip()) < 2:
-            raise ValueError("Name must be at least 2 characters")
-        return v.strip()
+# Alias expected by users.py and admin.py
+UserResponse = UserOut
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
-
-
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-    phone: Optional[str]
-    role: UserRole
-    is_active: bool
-    is_verified: bool
-    created_at: datetime
     profile_image: Optional[str] = None
 
-    model_config = {"from_attributes": True}
+
+class AdminUserRoleUpdate(BaseModel):
+    role: str
+    is_active: Optional[bool] = None
+
+
+class AdminStatsResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    total_users: int = 0
+    total_properties: int = 0
+    total_investments: int = 0
+    total_revenue: float = 0.0
+    stats: Optional[Dict[str, Any]] = None
+
+
+class UserCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    phone: Optional[str] = None
+    role: str = Field(default="customer")
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
 
 
 class LoginRequest(BaseModel):
@@ -50,28 +61,10 @@ class LoginRequest(BaseModel):
     password: str
     role: Optional[str] = None
 
-    @field_validator("role")
-    @classmethod
-    def normalize_login_role(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return None
-        role = v.strip().lower()
-        # Legacy alias: 'agent' maps to 'seller'
-        if role == "agent":
-            return "seller"
-        # Legacy alias: 'founder' maps to 'startup_founder'
-        if role == "founder":
-            return "startup_founder"
-        valid_roles = {
-            "customer", "seller", "admin",
-            "super_admin", "team_member", "startup_founder", "investor",
-        }
-        if role in valid_roles:
-            return role
-        raise ValueError(
-            "role must be one of: customer, seller, admin, "
-            "super_admin, team_member, startup_founder, investor"
-        )
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 class TokenResponse(BaseModel):
@@ -79,7 +72,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     role: str
-    user: UserResponse
+    user: UserOut
 
 
 class OTPVerifyRequest(BaseModel):
@@ -93,26 +86,13 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(..., min_length=6)
 
-    @field_validator("new_password")
-    @classmethod
-    def validate_pw(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
 
 class ResetOTPVerifyRequest(BaseModel):
     email: EmailStr
     otp: str
-    new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def validate_pw(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
+    new_password: str = Field(..., min_length=6)
 
 
 class RefreshTokenRequest(BaseModel):
@@ -121,39 +101,14 @@ class RefreshTokenRequest(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     id_token: str
-    role: Optional[str] = "customer"
+    role: Optional[str] = None
 
 
 class LinkedInAuthRequest(BaseModel):
     code: str
     redirect_uri: str
-    role: Optional[str] = "customer"
+    role: Optional[str] = None
 
 
 class LogoutResponse(BaseModel):
     message: str = "Logged out successfully"
-
-
-class AdminUserRoleUpdate(BaseModel):
-    role: UserRole
-
-
-class AdminStatsResponse(BaseModel):
-    # ── Legacy counts ─────────────────────────────────────────────────────────
-    total_users: int
-    customers: int
-    sellers: int
-    admins: int
-    total_properties: int
-    published_properties: int
-    pending_listings: int
-
-    # ── Phase 1 domain counts (populated once investor/startup models exist) ──
-    super_admins: int = 0
-    team_members: int = 0
-    investors: int = 0
-    startup_founders: int = 0
-    total_investors: int = 0       # alias: investors count
-    total_startups: int = 0        # populated after startup_profiles table
-    new_investors_this_week: int = 0
-    pending_startup_requests: int = 0

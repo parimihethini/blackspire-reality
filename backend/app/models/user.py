@@ -1,5 +1,7 @@
 import enum
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SAEnum, Text
+from app.models.investor import InvestorProfile  # noqa: F401
+from app.models.startup import StartupProfile  # noqa: F401
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
